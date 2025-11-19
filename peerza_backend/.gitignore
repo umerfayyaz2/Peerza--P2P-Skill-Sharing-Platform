@@ -1,0 +1,50 @@
+# --------------------
+# 1. Environment and Dependencies
+# --------------------
+# Virtual environment folder
+/env/
+
+# Package dependencies (often managed by venv, but good to include)
+/node_modules/
+*.egg-info/
+/build/
+/dist/
+
+# --------------------
+# 2. Python compiled files
+# --------------------
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+$py.class
+/local_settings.py
+
+# --------------------
+# 3. Django and Database
+# --------------------
+# The actual SQLite database file
+# DO NOT COMMIT YOUR DATABASE
+/db.sqlite3
+/db.sqlite3-journal
+
+# Django system files
+*.log
+*.pot
+*.mo
+.coverage
+.tox
+
+# Django secret files (important for security)
+/secret_key.py
+
+# --------------------
+# 4. OS/Editor Files
+# --------------------
+# Editor files
+.vscode/
+.idea/
+
+# OS generated files
+.DS_Store
