@@ -5,9 +5,15 @@ import Home from "./pages/Home";
 import Classroom from "./pages/Classroom";
 import Layout from "./components/Layout";
 import Settings from "./pages/Settings";
-import Landing from "./pages/Landing"; // <--- Import Landing
+import Landing from "./pages/Landing";
 import ProtectedRoute from "./components/ProtectedRoute";
 import PeerProfile from "./pages/PeerProfile";
+
+// --- NEW IMPORTS ---
+import GetPro from "./pages/GetPro";
+import About from "./pages/About";
+import Privacy from "./pages/Privacy";
+import Terms from "./pages/Terms";
 
 function Logout() {
   localStorage.clear();
@@ -26,7 +32,7 @@ function App() {
         {/* 1. PUBLIC LANDING PAGE (Root) */}
         <Route path="/" element={<Landing />} />
 
-        {/* 2. PROTECTED DASHBOARD (Moved to /dashboard) */}
+        {/* 2. PROTECTED DASHBOARD */}
         <Route
           path="/dashboard"
           element={
@@ -62,7 +68,43 @@ function App() {
           }
         />
 
-        {/* Video Classroom Route */}
+        {/* --- NEW PAGES (Wrapped in Layout) --- */}
+        <Route
+          path="/pro"
+          element={
+            <ProtectedRoute>
+              <Layout>
+                <GetPro />
+              </Layout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/about"
+          element={
+            <Layout>
+              <About />
+            </Layout>
+          }
+        />
+        <Route
+          path="/privacy"
+          element={
+            <Layout>
+              <Privacy />
+            </Layout>
+          }
+        />
+        <Route
+          path="/terms"
+          element={
+            <Layout>
+              <Terms />
+            </Layout>
+          }
+        />
+
+        {/* Video Classroom */}
         <Route
           path="/room/:peerId"
           element={

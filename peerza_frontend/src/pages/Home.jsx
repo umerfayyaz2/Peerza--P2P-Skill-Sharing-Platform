@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import api from "../api";
+import "../index.css";
 
 function Home() {
   const [skills, setSkills] = useState([]);
@@ -12,7 +13,7 @@ function Home() {
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState([]);
   const [searching, setSearching] = useState(false);
-  const [hasSearched, setHasSearched] = useState(false); // To track if user has tried searching
+  const [hasSearched, setHasSearched] = useState(false);
 
   const navigate = useNavigate();
 
@@ -88,7 +89,7 @@ function Home() {
       {/* --- LEFT SIDEBAR (User Skills) --- */}
       <div className="lg:col-span-4 space-y-6">
         {/* 1. Profile Summary Card */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6">
           <h2 className="text-2xl font-bold text-gray-800">
             Hi, <span className="text-indigo-600">{profile?.username}</span> 👋
           </h2>
@@ -97,129 +98,171 @@ function Home() {
           </p>
         </div>
 
-        {/* 2. My Skills Widget */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-          <h3 className="font-bold text-gray-700 mb-4 flex items-center">
-            <span>My Skills</span>
-            <span className="ml-auto bg-gray-100 text-gray-600 text-xs px-2 py-1 rounded-full">
-              {skills.length} / 2
+        {/* 2. My Skills Widget - HIGH DEF FIX */}
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6">
+          <div className="flex justify-between items-center mb-6">
+            <h3 className="font-bold text-gray-800 text-lg">My Skills</h3>
+            <span
+              className={`text-xs font-bold px-3 py-1 rounded-full ${
+                skills.length >= 2
+                  ? "bg-red-100 text-red-600"
+                  : "bg-indigo-50 text-indigo-600"
+              }`}
+            >
+              {skills.length} / 2 Slots Used
             </span>
-          </h3>
+          </div>
 
-          {/* Teaching List */}
-          <div className="mb-6">
-            <p className="text-xs font-bold text-green-600 uppercase tracking-wider mb-2">
-              I Teach
-            </p>
-            <div className="flex flex-wrap gap-2">
-              {teaching.length > 0 ? (
-                teaching.map((item) => (
-                  <span
-                    key={item.id}
-                    className="inline-flex items-center bg-green-50 text-green-700 px-3 py-1 rounded-lg text-sm border border-green-100"
-                  >
-                    {item.skill.name}
-                    <button
-                      onClick={() => deleteSkill(item.id)}
-                      className="ml-2 text-green-400 hover:text-red-500 font-bold"
+          <div className="space-y-5">
+            {/* TEACHING ZONE (Emerald) */}
+            <div className="bg-emerald-50 rounded-xl p-5 border border-emerald-100">
+              <div className="flex items-center gap-2 mb-3">
+                <span className="text-xl">👨‍🏫</span>
+                <h4 className="text-xs font-extrabold text-emerald-800 uppercase tracking-widest">
+                  I Teach
+                </h4>
+              </div>
+
+              <div className="flex flex-wrap gap-2">
+                {teaching.length > 0 ? (
+                  teaching.map((item) => (
+                    <span
+                      key={item.id}
+                      className="inline-flex items-center bg-white text-emerald-700 px-3 py-2 rounded-lg text-sm font-bold shadow-sm border border-emerald-200"
                     >
-                      ×
-                    </button>
+                      {item.skill.name}
+                      <button
+                        onClick={() => deleteSkill(item.id)}
+                        className="ml-2 w-5 h-5 flex items-center justify-center rounded-full text-gray-400 hover:bg-red-100 hover:text-red-600 transition-all"
+                        title="Remove skill"
+                      >
+                        &times;
+                      </button>
+                    </span>
+                  ))
+                ) : (
+                  <span className="text-gray-400 text-sm italic">
+                    Add a skill you can teach.
                   </span>
-                ))
-              ) : (
-                <span className="text-gray-400 text-sm italic">
-                  Nothing yet.
-                </span>
-              )}
+                )}
+              </div>
+            </div>
+
+            {/* LEARNING ZONE (Amber) */}
+            <div className="bg-amber-50 rounded-xl p-5 border border-amber-100">
+              <div className="flex items-center gap-2 mb-3">
+                <span className="text-xl">📚</span>
+                <h4 className="text-xs font-extrabold text-amber-800 uppercase tracking-widest">
+                  I Learn
+                </h4>
+              </div>
+
+              <div className="flex flex-wrap gap-2">
+                {learning.length > 0 ? (
+                  learning.map((item) => (
+                    <span
+                      key={item.id}
+                      className="inline-flex items-center bg-white text-amber-700 px-3 py-2 rounded-lg text-sm font-bold shadow-sm border border-amber-200"
+                    >
+                      {item.skill.name}
+                      <button
+                        onClick={() => deleteSkill(item.id)}
+                        className="ml-2 w-5 h-5 flex items-center justify-center rounded-full text-gray-400 hover:bg-red-100 hover:text-red-600 transition-all"
+                        title="Remove skill"
+                      >
+                        &times;
+                      </button>
+                    </span>
+                  ))
+                ) : (
+                  <span className="text-gray-400 text-sm italic">
+                    Add a skill you want to learn.
+                  </span>
+                )}
+              </div>
             </div>
           </div>
 
-          {/* Learning List */}
-          <div className="mb-6">
-            <p className="text-xs font-bold text-yellow-600 uppercase tracking-wider mb-2">
-              I Learn
-            </p>
-            <div className="flex flex-wrap gap-2">
-              {learning.length > 0 ? (
-                learning.map((item) => (
-                  <span
-                    key={item.id}
-                    className="inline-flex items-center bg-yellow-50 text-yellow-700 px-3 py-1 rounded-lg text-sm border border-yellow-100"
-                  >
-                    {item.skill.name}
-                    <button
-                      onClick={() => deleteSkill(item.id)}
-                      className="ml-2 text-yellow-500 hover:text-red-500 font-bold"
-                    >
-                      ×
-                    </button>
-                  </span>
-                ))
-              ) : (
-                <span className="text-gray-400 text-sm italic">
-                  Nothing yet.
-                </span>
-              )}
-            </div>
-          </div>
-
-          {/* Add Skill Mini-Form */}
+          {/* Add Skill Form - HIGH DEF FIX */}
           <form
             onSubmit={addSkill}
-            className="mt-6 pt-6 border-t border-gray-100"
+            className="mt-8 pt-6 border-t border-gray-100"
           >
-            <p className="text-sm font-bold text-gray-700 mb-2">
+            <p className="text-sm font-bold text-gray-800 mb-3">
               Add New Skill
             </p>
-            <input
-              type="text"
-              placeholder="e.g. React Native"
-              required
-              value={skillName}
-              onChange={(e) => setSkillName(e.target.value)}
-              className="w-full p-2 text-sm border border-gray-300 rounded mb-2 focus:ring-2 focus:ring-indigo-500 outline-none"
-            />
-            <div className="flex gap-2 mb-2">
-              <select
-                value={skillType}
-                onChange={(e) => setSkillType(e.target.value)}
-                className="w-full p-2 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-indigo-500 outline-none"
+            <div className="space-y-3">
+              {/* Taller Input with Background */}
+              <input
+                type="text"
+                placeholder="e.g. React Native"
+                required
+                value={skillName}
+                onChange={(e) => setSkillName(e.target.value)}
+                className="w-full bg-gray-50 border border-gray-200 text-gray-900 text-sm rounded-xl focus:ring-indigo-500 focus:border-indigo-500 block w-full p-3 outline-none transition-all placeholder-gray-400"
+              />
+
+              {/* Taller Select with Background */}
+              <div className="relative">
+                <select
+                  value={skillType}
+                  onChange={(e) => setSkillType(e.target.value)}
+                  className="w-full bg-gray-50 border border-gray-200 text-gray-900 text-sm rounded-xl focus:ring-indigo-500 focus:border-indigo-500 block w-full p-3 outline-none appearance-none cursor-pointer"
+                >
+                  <option value="TEACH">👨‍🏫 I can Teach</option>
+                  <option value="LEARN">📚 I want to Learn</option>
+                </select>
+                {/* Custom Arrow Icon to ensure it looks good */}
+                <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-gray-500">
+                  <svg
+                    className="w-4 h-4"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth="2"
+                      d="M19 9l-7 7-7-7"
+                    ></path>
+                  </svg>
+                </div>
+              </div>
+
+              <button
+                type="submit"
+                className="w-full bg-indigo-600 text-white py-3 rounded-xl text-sm font-bold hover:bg-indigo-700 active:scale-95 transition-all shadow-lg shadow-indigo-200 mt-2"
               >
-                <option value="TEACH">Teach</option>
-                <option value="LEARN">Learn</option>
-              </select>
+                + Add to Profile
+              </button>
             </div>
-            <button
-              type="submit"
-              className="w-full bg-indigo-600 text-white py-2 rounded text-sm font-bold hover:bg-indigo-700 transition"
-            >
-              + Add to Profile
-            </button>
           </form>
         </div>
       </div>
 
       {/* --- RIGHT MAIN CONTENT (Search & Discovery) --- */}
       <div className="lg:col-span-8">
-        {/* Hero Search Bar */}
-        <div className="bg-indigo-600 rounded-2xl p-8 text-center shadow-lg mb-8 text-white">
-          <h1 className="text-3xl font-bold mb-2">Find your next tutor</h1>
-          <p className="text-indigo-100 mb-6">
+        {/* Hero Search Bar - FIXED LAYOUT */}
+        <div className="bg-indigo-600 rounded-2xl py-12 px-6 md:px-12 text-center shadow-lg mb-8 text-white flex flex-col items-center justify-center">
+          <h1 className="text-3xl md:text-4xl font-extrabold mb-4">
+            Find your next tutor
+          </h1>
+          <p className="text-indigo-100 mb-8 text-lg max-w-2xl leading-relaxed">
             Search for any skill you want to learn.
           </p>
 
-          <form onSubmit={handleSearch} className="relative max-w-xl mx-auto">
+          <form onSubmit={handleSearch} className="relative w-full max-w-xl">
             <input
               type="text"
               placeholder="What do you want to learn? (e.g. Python)"
-              className="w-full p-4 pl-6 rounded-full text-gray-800 focus:ring-4 focus:ring-indigo-300 outline-none shadow-xl"
+              className="w-full p-4 pl-6 pr-32 rounded-full text-gray-800 focus:ring-4 focus:ring-indigo-400 outline-none shadow-2xl text-lg"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
             />
             <button
               type="submit"
-              className="absolute right-2 top-2 bg-indigo-800 text-white px-6 py-2 rounded-full font-bold hover:bg-indigo-900 transition"
+              className="absolute right-2 top-2 bottom-2 bg-indigo-800 text-white px-8 rounded-full font-bold hover:bg-indigo-900 transition-all"
             >
               {searching ? "..." : "Search"}
             </button>
@@ -229,41 +272,41 @@ function Home() {
         {/* Search Results Area */}
         <div>
           {hasSearched && (
-            <h2 className="text-xl font-bold text-gray-800 mb-4">
+            <h2 className="text-xl font-bold text-gray-800 mb-6 pl-2">
               {searchResults.length}{" "}
               {searchResults.length === 1 ? "Peer" : "Peers"} Found
             </h2>
           )}
 
           {/* Results Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {searchResults.map((result) => (
               <div
                 key={result.id}
-                className="bg-white p-5 rounded-xl shadow-sm border border-gray-100 hover:shadow-md transition flex flex-col"
+                className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 hover:shadow-md transition-all flex flex-col group"
               >
-                <div className="flex items-center justify-between mb-4">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 bg-indigo-100 rounded-full flex items-center justify-center text-indigo-600 font-bold">
+                <div className="flex items-center justify-between mb-6">
+                  <div className="flex items-center gap-4">
+                    <div className="w-12 h-12 bg-indigo-50 rounded-full flex items-center justify-center text-indigo-600 font-bold text-xl border border-indigo-100">
                       {result.user.username.charAt(0).toUpperCase()}
                     </div>
                     <div>
-                      <h3 className="font-bold text-gray-800">
+                      <h3 className="font-bold text-lg text-gray-900">
                         {result.user.username}
                       </h3>
-                      <p className="text-xs text-gray-500">
+                      <p className="text-xs text-gray-500 font-medium uppercase tracking-wide">
                         Level: {result.proficiency}
                       </p>
                     </div>
                   </div>
-                  <span className="bg-green-100 text-green-700 text-xs px-2 py-1 rounded-full font-bold">
+                  <span className="bg-green-100 text-green-700 text-xs px-3 py-1 rounded-full font-bold border border-green-200">
                     {result.skill.name}
                   </span>
                 </div>
 
                 <button
                   onClick={() => navigate(`/peer/${result.user.id}`)}
-                  className="mt-auto w-full py-2 border border-indigo-600 text-indigo-600 rounded-lg font-bold text-sm hover:bg-indigo-50 transition"
+                  className="mt-auto w-full py-3 border-2 border-indigo-50 text-indigo-600 rounded-xl font-bold text-sm hover:bg-indigo-600 hover:text-white hover:border-indigo-600 transition-all"
                 >
                   View Profile
                 </button>
@@ -273,12 +316,12 @@ function Home() {
 
           {/* Empty State */}
           {hasSearched && searchResults.length === 0 && !searching && (
-            <div className="text-center py-12 bg-white rounded-xl border border-gray-100 border-dashed">
-              <div className="text-4xl mb-2">🤔</div>
-              <h3 className="text-lg font-bold text-gray-600">
+            <div className="text-center py-16 bg-white rounded-2xl border-2 border-dashed border-gray-200">
+              <div className="text-5xl mb-4">🤔</div>
+              <h3 className="text-lg font-bold text-gray-700">
                 No tutors found
               </h3>
-              <p className="text-gray-400">
+              <p className="text-gray-400 mt-2">
                 Try searching for a different skill or keyword.
               </p>
             </div>
@@ -286,8 +329,8 @@ function Home() {
 
           {/* Initial State */}
           {!hasSearched && (
-            <div className="text-center py-12">
-              <p className="text-gray-400">
+            <div className="text-center py-20 opacity-50">
+              <p className="text-gray-400 font-medium">
                 Start typing to find peers around the world.
               </p>
             </div>
