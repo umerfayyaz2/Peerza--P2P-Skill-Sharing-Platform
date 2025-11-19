@@ -29,7 +29,16 @@ def get_my_profile(request):
 
     # 2. UPDATE Profile
     elif request.method == 'PATCH':
-        serializer = UserSerializer(request.user, data=request.data, partial=True)
+        user = request.user
+        
+        # --- NEW LOGIC: Check for removal flag ---
+        if request.data.get('remove_avatar') == 'true':
+            user.avatar.delete(save=False) # Deletes file from storage
+            user.avatar = None
+            user.save()
+
+        # Continue updating other fields (username, bio)
+        serializer = UserSerializer(user, data=request.data, partial=True)
         if serializer.is_valid():
             serializer.save()
             return Response(serializer.data)
@@ -131,3 +140,18 @@ def get_public_profile(request, pk):
         
     except User.DoesNotExist:
         return Response({"error": "User not found"}, status=status.HTTP_404_NOT_FOUND)
+    
+# password management (reset/change) 
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def change_password(request):
+    user = request.user
+    old_password = request.data.get('old_password')
+    new_password = request.data.get('new_password')
+
+    if not user.check_password(old_password):
+        return Response({"error": "Wrong old password."}, status=status.HTTP_400_BAD_REQUEST)
+
+    user.set_password(new_password)
+    user.save()
+    return Response({"message": "Password updated successfully."}, status=status.HTTP_200_OK)

@@ -13,7 +13,7 @@ class SkillSerializer(serializers.ModelSerializer):
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
-        fields = ['id', 'username', 'bio', 'is_pro']
+        fields = ['id', 'username', 'bio', 'is_pro', 'avatar']
 
 # 3. UserSkill Serializer
 # This shows the link: "Umer teaches Python"

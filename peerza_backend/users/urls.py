@@ -23,4 +23,9 @@ urlpatterns = [
 
     # Public Profile Route
     path('users/<int:pk>/', views.get_public_profile, name='public_profile'),
+
+    #password change
+    path('change-password/', views.change_password, name='change_password'),
+
+    
 ]

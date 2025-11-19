@@ -136,3 +136,12 @@ REST_FRAMEWORK = {
         'rest_framework_simplejwt.authentication.JWTAuthentication',
     )
 }
+
+# Media Configuration
+import os
+
+MEDIA_URL = '/media/'
+MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
+
+# Email Backend (Prints emails to the terminal console instead of sending them)
+EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'

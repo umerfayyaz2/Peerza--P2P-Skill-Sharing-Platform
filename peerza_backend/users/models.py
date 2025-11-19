@@ -6,6 +6,7 @@ from django.contrib.auth.models import AbstractUser
 class User(AbstractUser):
     bio = models.TextField(blank=True, null=True)
     is_pro = models.BooleanField(default=False) # For the Freemium Logic [cite: 33]
+    avatar = models.ImageField(upload_to='avatars/', blank=True, null=True)
     
     # We will add avatar/profile_pic later if needed.
     

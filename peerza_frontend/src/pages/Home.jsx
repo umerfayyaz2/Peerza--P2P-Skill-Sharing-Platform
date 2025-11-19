@@ -1,7 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import api from "../api";
-import "../index.css";
 
 function Home() {
   const [skills, setSkills] = useState([]);
@@ -9,29 +8,36 @@ function Home() {
   const [skillType, setSkillType] = useState("TEACH");
   const [profile, setProfile] = useState(null);
 
+  // Search State
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState([]);
   const [searching, setSearching] = useState(false);
+  const [hasSearched, setHasSearched] = useState(false); // To track if user has tried searching
 
   const navigate = useNavigate();
 
+  // --- 1. API CALLS ---
   const getProfile = () => {
     api
       .get("profile/")
       .then((res) => setProfile(res.data))
-      .catch((err) => alert(err));
+      .catch(() => {});
   };
 
   const getSkills = () => {
     api
       .get("my-skills/")
       .then((res) => setSkills(res.data))
-      .catch((err) => alert(err));
+      .catch(() => {});
   };
 
   const handleSearch = (e) => {
     e.preventDefault();
+    if (!searchQuery.trim()) return;
+
     setSearching(true);
+    setHasSearched(true);
+
     api
       .get(`search/?skill=${searchQuery}`)
       .then((res) => setSearchResults(res.data))
@@ -45,7 +51,6 @@ function Home() {
       .post("my-skills/", { skill_name: skillName, skill_type: skillType })
       .then((res) => {
         if (res.status === 201) {
-          alert("Skill Added!");
           setSkillName("");
           getSkills();
         }
@@ -60,17 +65,13 @@ function Home() {
   };
 
   const deleteSkill = (id) => {
-    if (confirm("Are you sure you want to delete this skill?")) {
+    if (confirm("Remove this skill?")) {
       api
         .delete(`delete-skill/${id}/`)
         .then((res) => {
-          if (res.status === 204) {
-            getSkills();
-          } else {
-            alert("Failed to delete");
-          }
+          if (res.status === 204) getSkills();
         })
-        .catch((err) => alert(err));
+        .catch(() => alert("Failed to delete"));
     }
   };
 
@@ -83,152 +84,214 @@ function Home() {
   const learning = skills.filter((s) => s.skill_type === "LEARN");
 
   return (
-    <div className="min-h-screen bg-gray-50 p-8">
-      {/* Welcome Message */}
-      <div className="max-w-4xl mx-auto mb-10">
-        <h1 className="text-3xl font-bold text-gray-800">
-          Hello, <span className="text-indigo-600">{profile?.username}</span> 👋
-        </h1>
-        <p className="text-gray-500">Manage your skills and find peers.</p>
-      </div>
-
-      {/* SEARCH BAR SECTION */}
-      <div className="max-w-4xl mx-auto bg-white p-6 rounded-xl shadow-md mb-8 border border-indigo-100">
-        <h2 className="text-2xl font-bold mb-4 text-gray-800">
-          🔍 Find a Tutor
-        </h2>
-        <form onSubmit={handleSearch} className="flex gap-2">
-          <input
-            type="text"
-            placeholder="What do you want to learn? (e.g. Python)"
-            className="flex-1 p-3 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-indigo-500"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-          />
-          <button
-            type="submit"
-            className="bg-indigo-600 text-white px-6 py-3 rounded font-bold hover:bg-indigo-700 transition"
-          >
-            {searching ? "Searching..." : "Search"}
-          </button>
-        </form>
-
-        {/* Search Results Area */}
-        <div className="mt-6">
-          {searchResults.length > 0 && (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {searchResults.map((result) => (
-                <div
-                  key={result.id}
-                  className="p-4 border rounded-lg bg-gray-50 flex justify-between items-center hover:shadow-md transition"
-                >
-                  <div>
-                    <h3 className="font-bold text-lg">
-                      {result.user.username}
-                    </h3>
-                    <p className="text-sm text-gray-500">
-                      Can teach:{" "}
-                      <span className="font-semibold text-green-600">
-                        {result.skill.name}
-                      </span>
-                    </p>
-                    <p className="text-xs text-gray-400">
-                      Level: {result.proficiency}
-                    </p>
-                  </div>
-                  <button
-                    onClick={() => navigate(`/peer/${result.user.id}`)} // Changed to /peer/
-                    className="bg-white border border-indigo-600 text-indigo-600 px-3 py-1 rounded hover:bg-indigo-50 text-sm font-bold transition"
-                  >
-                    View Profile 👤
-                  </button>
-                </div>
-              ))}
-            </div>
-          )}
+    <div className="max-w-7xl mx-auto mt-6 grid grid-cols-1 lg:grid-cols-12 gap-8">
+      {/* --- LEFT SIDEBAR (User Skills) --- */}
+      <div className="lg:col-span-4 space-y-6">
+        {/* 1. Profile Summary Card */}
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+          <h2 className="text-2xl font-bold text-gray-800">
+            Hi, <span className="text-indigo-600">{profile?.username}</span> 👋
+          </h2>
+          <p className="text-gray-500 text-sm mt-1">
+            Ready to learn something new today?
+          </p>
         </div>
-      </div>
 
-      {/* Skills Grid */}
-      <div className="max-w-4xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-8">
-        {/* Add Skill Form */}
-        <div className="bg-white p-6 rounded-xl shadow-md h-fit">
-          <h2 className="text-xl font-bold mb-4 text-gray-700">Add a Skill</h2>
-          <form onSubmit={addSkill}>
-            <label className="block text-sm text-gray-600 mb-2">
-              Skill Name (e.g. Python)
-            </label>
+        {/* 2. My Skills Widget */}
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+          <h3 className="font-bold text-gray-700 mb-4 flex items-center">
+            <span>My Skills</span>
+            <span className="ml-auto bg-gray-100 text-gray-600 text-xs px-2 py-1 rounded-full">
+              {skills.length} / 2
+            </span>
+          </h3>
+
+          {/* Teaching List */}
+          <div className="mb-6">
+            <p className="text-xs font-bold text-green-600 uppercase tracking-wider mb-2">
+              I Teach
+            </p>
+            <div className="flex flex-wrap gap-2">
+              {teaching.length > 0 ? (
+                teaching.map((item) => (
+                  <span
+                    key={item.id}
+                    className="inline-flex items-center bg-green-50 text-green-700 px-3 py-1 rounded-lg text-sm border border-green-100"
+                  >
+                    {item.skill.name}
+                    <button
+                      onClick={() => deleteSkill(item.id)}
+                      className="ml-2 text-green-400 hover:text-red-500 font-bold"
+                    >
+                      ×
+                    </button>
+                  </span>
+                ))
+              ) : (
+                <span className="text-gray-400 text-sm italic">
+                  Nothing yet.
+                </span>
+              )}
+            </div>
+          </div>
+
+          {/* Learning List */}
+          <div className="mb-6">
+            <p className="text-xs font-bold text-yellow-600 uppercase tracking-wider mb-2">
+              I Learn
+            </p>
+            <div className="flex flex-wrap gap-2">
+              {learning.length > 0 ? (
+                learning.map((item) => (
+                  <span
+                    key={item.id}
+                    className="inline-flex items-center bg-yellow-50 text-yellow-700 px-3 py-1 rounded-lg text-sm border border-yellow-100"
+                  >
+                    {item.skill.name}
+                    <button
+                      onClick={() => deleteSkill(item.id)}
+                      className="ml-2 text-yellow-500 hover:text-red-500 font-bold"
+                    >
+                      ×
+                    </button>
+                  </span>
+                ))
+              ) : (
+                <span className="text-gray-400 text-sm italic">
+                  Nothing yet.
+                </span>
+              )}
+            </div>
+          </div>
+
+          {/* Add Skill Mini-Form */}
+          <form
+            onSubmit={addSkill}
+            className="mt-6 pt-6 border-t border-gray-100"
+          >
+            <p className="text-sm font-bold text-gray-700 mb-2">
+              Add New Skill
+            </p>
             <input
               type="text"
+              placeholder="e.g. React Native"
               required
               value={skillName}
               onChange={(e) => setSkillName(e.target.value)}
-              className="w-full p-2 border rounded mb-4 focus:ring-2 focus:ring-indigo-500 outline-none"
+              className="w-full p-2 text-sm border border-gray-300 rounded mb-2 focus:ring-2 focus:ring-indigo-500 outline-none"
             />
-            <label className="block text-sm text-gray-600 mb-2">
-              I want to...
-            </label>
-            <select
-              value={skillType}
-              onChange={(e) => setSkillType(e.target.value)}
-              className="w-full p-2 border rounded mb-6 focus:ring-2 focus:ring-indigo-500 outline-none"
-            >
-              <option value="TEACH">Teach this (Offer)</option>
-              <option value="LEARN">Learn this (Request)</option>
-            </select>
+            <div className="flex gap-2 mb-2">
+              <select
+                value={skillType}
+                onChange={(e) => setSkillType(e.target.value)}
+                className="w-full p-2 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-indigo-500 outline-none"
+              >
+                <option value="TEACH">Teach</option>
+                <option value="LEARN">Learn</option>
+              </select>
+            </div>
             <button
               type="submit"
-              className="w-full bg-indigo-600 text-white py-2 rounded font-bold hover:bg-indigo-700"
+              className="w-full bg-indigo-600 text-white py-2 rounded text-sm font-bold hover:bg-indigo-700 transition"
             >
-              Add to Profile
+              + Add to Profile
+            </button>
+          </form>
+        </div>
+      </div>
+
+      {/* --- RIGHT MAIN CONTENT (Search & Discovery) --- */}
+      <div className="lg:col-span-8">
+        {/* Hero Search Bar */}
+        <div className="bg-indigo-600 rounded-2xl p-8 text-center shadow-lg mb-8 text-white">
+          <h1 className="text-3xl font-bold mb-2">Find your next tutor</h1>
+          <p className="text-indigo-100 mb-6">
+            Search for any skill you want to learn.
+          </p>
+
+          <form onSubmit={handleSearch} className="relative max-w-xl mx-auto">
+            <input
+              type="text"
+              placeholder="What do you want to learn? (e.g. Python)"
+              className="w-full p-4 pl-6 rounded-full text-gray-800 focus:ring-4 focus:ring-indigo-300 outline-none shadow-xl"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
+            <button
+              type="submit"
+              className="absolute right-2 top-2 bg-indigo-800 text-white px-6 py-2 rounded-full font-bold hover:bg-indigo-900 transition"
+            >
+              {searching ? "..." : "Search"}
             </button>
           </form>
         </div>
 
-        {/* Display Skills */}
-        <div className="space-y-6">
-          <div className="bg-white p-6 rounded-xl shadow-md border-l-4 border-green-500">
-            <h2 className="text-xl font-bold mb-3 text-gray-800">
-              I Can Teach 👨‍🏫
+        {/* Search Results Area */}
+        <div>
+          {hasSearched && (
+            <h2 className="text-xl font-bold text-gray-800 mb-4">
+              {searchResults.length}{" "}
+              {searchResults.length === 1 ? "Peer" : "Peers"} Found
             </h2>
-            <div className="flex flex-wrap gap-2">
-              {teaching.map((item) => (
-                <div
-                  key={item.id}
-                  className="flex items-center bg-green-100 text-green-800 px-3 py-1 rounded-full text-sm font-medium"
-                >
-                  <span>{item.skill.name}</span>
-                  <button
-                    onClick={() => deleteSkill(item.id)}
-                    className="ml-2 text-red-500 hover:text-red-700 font-bold"
-                  >
-                    ×
-                  </button>
+          )}
+
+          {/* Results Grid */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {searchResults.map((result) => (
+              <div
+                key={result.id}
+                className="bg-white p-5 rounded-xl shadow-sm border border-gray-100 hover:shadow-md transition flex flex-col"
+              >
+                <div className="flex items-center justify-between mb-4">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 bg-indigo-100 rounded-full flex items-center justify-center text-indigo-600 font-bold">
+                      {result.user.username.charAt(0).toUpperCase()}
+                    </div>
+                    <div>
+                      <h3 className="font-bold text-gray-800">
+                        {result.user.username}
+                      </h3>
+                      <p className="text-xs text-gray-500">
+                        Level: {result.proficiency}
+                      </p>
+                    </div>
+                  </div>
+                  <span className="bg-green-100 text-green-700 text-xs px-2 py-1 rounded-full font-bold">
+                    {result.skill.name}
+                  </span>
                 </div>
-              ))}
-            </div>
-          </div>
-          <div className="bg-white p-6 rounded-xl shadow-md border-l-4 border-yellow-500">
-            <h2 className="text-xl font-bold mb-3 text-gray-800">
-              I Want to Learn 📚
-            </h2>
-            <div className="flex flex-wrap gap-2">
-              {learning.map((item) => (
-                <div
-                  key={item.id}
-                  className="flex items-center bg-yellow-100 text-yellow-800 px-3 py-1 rounded-full text-sm font-medium"
+
+                <button
+                  onClick={() => navigate(`/peer/${result.user.id}`)}
+                  className="mt-auto w-full py-2 border border-indigo-600 text-indigo-600 rounded-lg font-bold text-sm hover:bg-indigo-50 transition"
                 >
-                  <span>{item.skill.name}</span>
-                  <button
-                    onClick={() => deleteSkill(item.id)}
-                    className="ml-2 text-red-500 hover:text-red-700 font-bold"
-                  >
-                    ×
-                  </button>
-                </div>
-              ))}
-            </div>
+                  View Profile
+                </button>
+              </div>
+            ))}
           </div>
+
+          {/* Empty State */}
+          {hasSearched && searchResults.length === 0 && !searching && (
+            <div className="text-center py-12 bg-white rounded-xl border border-gray-100 border-dashed">
+              <div className="text-4xl mb-2">🤔</div>
+              <h3 className="text-lg font-bold text-gray-600">
+                No tutors found
+              </h3>
+              <p className="text-gray-400">
+                Try searching for a different skill or keyword.
+              </p>
+            </div>
+          )}
+
+          {/* Initial State */}
+          {!hasSearched && (
+            <div className="text-center py-12">
+              <p className="text-gray-400">
+                Start typing to find peers around the world.
+              </p>
+            </div>
+          )}
         </div>
       </div>
     </div>
