@@ -5,8 +5,9 @@ import Home from "./pages/Home";
 import Classroom from "./pages/Classroom";
 import Layout from "./components/Layout";
 import Settings from "./pages/Settings";
-import PeerProfile from "./pages/PeerProfile";
+import Landing from "./pages/Landing"; // <--- Import Landing
 import ProtectedRoute from "./components/ProtectedRoute";
+import PeerProfile from "./pages/PeerProfile";
 
 function Logout() {
   localStorage.clear();
@@ -22,9 +23,12 @@ function App() {
   return (
     <BrowserRouter>
       <Routes>
-        {/* 1. Protected Route: The Dashboard */}
+        {/* 1. PUBLIC LANDING PAGE (Root) */}
+        <Route path="/" element={<Landing />} />
+
+        {/* 2. PROTECTED DASHBOARD (Moved to /dashboard) */}
         <Route
-          path="/"
+          path="/dashboard"
           element={
             <ProtectedRoute>
               <Layout>
@@ -46,22 +50,6 @@ function App() {
           }
         />
 
-        {/* 2. Public Routes */}
-        <Route path="/login" element={<Login />} />
-        <Route path="/logout" element={<Logout />} />
-        <Route path="/register" element={<RegisterAndLogout />} />
-
-        {/* 3. Video Classroom Route */}
-        <Route
-          path="/room/:peerId"
-          element={
-            <ProtectedRoute>
-              {/* We keep the classroom full screen (no layout) */}
-              <Classroom />
-            </ProtectedRoute>
-          }
-        />
-
         {/* Peer Profile Page */}
         <Route
           path="/peer/:id"
@@ -74,7 +62,22 @@ function App() {
           }
         />
 
-        {/* 4. Fallback: If 404, go home */}
+        {/* Video Classroom Route */}
+        <Route
+          path="/room/:peerId"
+          element={
+            <ProtectedRoute>
+              <Classroom />
+            </ProtectedRoute>
+          }
+        />
+
+        {/* Public Routes */}
+        <Route path="/login" element={<Login />} />
+        <Route path="/logout" element={<Logout />} />
+        <Route path="/register" element={<RegisterAndLogout />} />
+
+        {/* Fallback */}
         <Route path="*" element={<Navigate to="/" />} />
       </Routes>
     </BrowserRouter>

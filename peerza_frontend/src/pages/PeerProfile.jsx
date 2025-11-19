@@ -20,7 +20,8 @@ function PeerProfile() {
       })
       .catch(() => {
         alert("Failed to load profile");
-        navigate("/"); // Go back home on error
+        // --- FIX APPLIED HERE ---
+        navigate("/dashboard"); // Go back to Dashboard, not Landing Page
       });
   }, [id, navigate]);
 

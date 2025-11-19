@@ -27,7 +27,10 @@ function Form({ route, method }) {
         // Save the digital ID cards (tokens) to the browser's memory
         localStorage.setItem(ACCESS_TOKEN, res.data.access);
         localStorage.setItem(REFRESH_TOKEN, res.data.refresh);
-        navigate("/"); // Send user to Dashboard
+
+        // --- FIX APPLIED HERE ---
+        // Redirect to the new Dashboard route instead of the Landing Page
+        navigate("/dashboard");
       } else {
         // 4. Register Success Logic
         // Send user to login page to sign in with new account

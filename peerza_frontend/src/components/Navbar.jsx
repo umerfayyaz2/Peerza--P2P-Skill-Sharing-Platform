@@ -13,7 +13,7 @@ function Navbar() {
         <div className="flex justify-between h-16">
           {/* Logo Section */}
           <div className="flex items-center">
-            <Link to="/" className="flex-shrink-0 flex items-center">
+            <Link to="/dashboard" className="flex-shrink-0 flex items-center">
               <span className="text-2xl font-bold text-indigo-600 tracking-tighter">
                 Peerza<span className="text-yellow-500">.</span>
               </span>
@@ -24,7 +24,7 @@ function Navbar() {
           <div className="flex items-center space-x-4">
             {/* Dashboard Link with Active Gradient Effect */}
             <Link
-              to="/"
+              to="/dashboard"
               className={`px-3 py-2 rounded-md text-sm font-medium transition duration-150 ease-in-out ${
                 isActive("/")
                   ? "bg-indigo-50 text-indigo-700 shadow-inner" // Active Style
