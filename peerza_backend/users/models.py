@@ -36,3 +36,13 @@ class UserSkill(models.Model):
 
     def __str__(self):
         return f"{self.user.username} - {self.skill.name} ({self.skill_type})"
+
+# --- Meeting notification model / polling model  ---
+class Call(models.Model):
+    caller = models.ForeignKey(User, related_name='calls_made', on_delete=models.CASCADE)
+    receiver = models.ForeignKey(User, related_name='calls_received', on_delete=models.CASCADE)
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"{self.caller.username} calling {self.receiver.username}"

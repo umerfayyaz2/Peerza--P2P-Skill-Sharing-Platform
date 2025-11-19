@@ -4,46 +4,57 @@ import { useState, useEffect } from "react";
 import api from "../api";
 
 function Classroom() {
-  const { peerId } = useParams(); // The ID of the person we are calling
+  const { peerId } = useParams();
   const navigate = useNavigate();
   const [myProfile, setMyProfile] = useState(null);
 
   useEffect(() => {
-    // Fetch my own ID so we can generate a unique room name
     api
       .get("profile/")
       .then((res) => setMyProfile(res.data))
-      .catch((err) => alert(err));
+      .catch(() => alert("Failed to load profile"));
   }, []);
 
   if (!myProfile)
     return <div className="text-center mt-20">Loading Classroom...</div>;
 
-  // LOGIC: Create a consistent Room Name based on both IDs
-  // We sort the IDs so "1 calling 5" and "5 calling 1" produce the SAME room name.
+  // Sort IDs to ensure both users join the exact same room
   const ids = [myProfile.id, parseInt(peerId)].sort((a, b) => a - b);
   const roomName = `Peerza-Class-${ids[0]}-${ids[1]}`;
 
   return (
     <div className="h-screen w-screen bg-gray-900 flex flex-col">
-      <div className="bg-gray-800 text-white p-4 flex justify-between items-center">
-        <h1 className="text-xl font-bold">Peerza Classroom 🎓</h1>
+      <div className="bg-gray-800 text-white p-4 flex justify-between items-center shadow-md z-10">
+        <h1 className="text-xl font-bold flex items-center gap-2">
+          <span>🎓</span> Peerza Classroom
+        </h1>
         <button
-          onClick={() => navigate("/")}
-          className="bg-red-500 px-4 py-1 rounded hover:bg-red-600 text-sm"
+          onClick={() => navigate("/dashboard")} // Go back to dashboard, not landing page
+          className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg text-sm font-bold transition"
         >
           Leave Class
         </button>
       </div>
 
-      <div className="flex-1">
+      <div className="flex-1 relative">
         <JitsiMeeting
           domain="meet.jit.si"
           roomName={roomName}
           configOverwrite={{
-            startWithAudioMuted: true,
+            startWithAudioMuted: false,
+            startWithVideoMuted: false,
             disableThirdPartyRequests: true,
-            prejoinPageEnabled: false,
+            prejoinPageEnabled: false, // Key: Skips the pre-join screen
+            enableWelcomePage: false,
+            enableClosePage: false,
+            // Try to force the meeting to start without a moderator
+            // Note: meet.jit.si may still enforce this on their public server
+            disable1On1Mode: false,
+            fileRecordingsEnabled: false,
+            liveStreamingEnabled: false,
+            remoteVideoMenu: {
+              disableKick: true,
+            },
           }}
           interfaceConfigOverwrite={{
             TOOLBAR_BUTTONS: [
@@ -71,18 +82,17 @@ function Classroom() {
               "videobackgroundblur",
               "download",
               "help",
-              "mute-everyone",
-              "security",
             ],
+            SHOW_JITSI_WATERMARK: false,
+            SHOW_WATERMARK_FOR_GUESTS: false,
+            DEFAULT_BACKGROUND: "#111827", // Matches bg-gray-900
           }}
           userInfo={{
             displayName: myProfile.username,
           }}
-          onApiReady={() => {
-            // Here you can attach custom event listeners
-          }}
           getIFrameRef={(iframeRef) => {
             iframeRef.style.height = "100%";
+            iframeRef.style.border = "none";
           }}
         />
       </div>
