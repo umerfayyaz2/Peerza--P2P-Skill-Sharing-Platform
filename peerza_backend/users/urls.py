@@ -17,4 +17,7 @@ urlpatterns = [
 
     #Searching
     path('search/', views.search_peers, name='search_peers'),
+
+    #Delete Skill
+    path('delete-skill/<int:skill_id>/', views.delete_skill, name='delete_skill'),
 ]

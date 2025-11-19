@@ -9,17 +9,17 @@ function Home() {
   const [skillType, setSkillType] = useState("TEACH");
   const [profile, setProfile] = useState(null);
 
-  // --- NEW SEARCH STATE ---
+  // --- SEARCH STATE ---
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState([]);
   const [searching, setSearching] = useState(false);
 
-  // --- Navigation ---
+  // --- Navigation HOOK ---
   const navigate = useNavigate();
-  // --- 1. DEFINE FUNCTIONS FIRST (To avoid Hoisting Errors) ---
+
+  // --- 1. DEFINE FUNCTIONS ---
 
   const getProfile = () => {
-    // Fixed URL: Removed "/api/" prefix
     api
       .get("profile/")
       .then((res) => res.data)
@@ -28,7 +28,6 @@ function Home() {
   };
 
   const getSkills = () => {
-    // Fixed URL: Removed "/api/" prefix
     api
       .get("my-skills/")
       .then((res) => res.data)
@@ -39,7 +38,6 @@ function Home() {
   const handleSearch = (e) => {
     e.preventDefault();
     setSearching(true);
-    // Fixed URL: Removed "/api/" prefix
     api
       .get(`search/?skill=${searchQuery}`)
       .then((res) => {
@@ -49,16 +47,8 @@ function Home() {
       .finally(() => setSearching(false));
   };
 
-  // --- 2. USE THEM IN EFFECT ---
-
-  useEffect(() => {
-    getSkills();
-    getProfile();
-  }, []);
-
   const addSkill = (e) => {
     e.preventDefault();
-    // Fixed URL: Removed "/api/" prefix
     api
       .post("my-skills/", { skill_name: skillName, skill_type: skillType })
       .then((res) => {
@@ -66,12 +56,41 @@ function Home() {
           alert("Skill Added!");
           setSkillName("");
           getSkills();
-        } else {
-          alert("Failed to add skill");
         }
       })
-      .catch((err) => alert(err));
+      .catch((err) => {
+        // check if the backend sent a specific error message (like the Limit Reached)
+        if (err.response && err.response.data && err.response.data.error) {
+          alert(err.response.data.error);
+        } else {
+          alert("Failed to add skill.");
+        }
+      });
   };
+
+  // --- NEW DELETE FUNCTION ---
+  const deleteSkill = (id) => {
+    if (confirm("Are you sure you want to delete this skill?")) {
+      api
+        .delete(`delete-skill/${id}/`)
+        .then((res) => {
+          if (res.status === 204) {
+            // alert("Skill deleted!"); // Optional: removed alert for smoother UX
+            getSkills(); // Refresh list instantly
+          } else {
+            alert("Failed to delete");
+          }
+        })
+        .catch((err) => alert(err));
+    }
+  };
+
+  // --- 2. USE EFFECTS ---
+
+  useEffect(() => {
+    getSkills();
+    getProfile();
+  }, []);
 
   const teaching = skills.filter((s) => s.skill_type === "TEACH");
   const learning = skills.filter((s) => s.skill_type === "LEARN");
@@ -88,7 +107,6 @@ function Home() {
           <p className="text-gray-500">Manage your skills and find peers.</p>
         </div>
         <div className="space-x-4">
-          {/* New Settings Link */}
           <a
             href="/settings"
             className="text-indigo-600 font-bold hover:underline transition"
@@ -204,6 +222,7 @@ function Home() {
 
         {/* Display Skills */}
         <div className="space-y-6">
+          {/* TEACHING LIST - UPDATED WITH DELETE BUTTON */}
           <div className="bg-white p-6 rounded-xl shadow-md border-l-4 border-green-500">
             <h2 className="text-xl font-bold mb-3 text-gray-800">
               I Can Teach 👨‍🏫
@@ -213,17 +232,24 @@ function Home() {
             ) : (
               <div className="flex flex-wrap gap-2">
                 {teaching.map((item) => (
-                  <span
+                  <div
                     key={item.id}
-                    className="bg-green-100 text-green-800 px-3 py-1 rounded-full text-sm font-medium"
+                    className="flex items-center bg-green-100 text-green-800 px-3 py-1 rounded-full text-sm font-medium"
                   >
-                    {item.skill.name}
-                  </span>
+                    <span>{item.skill.name}</span>
+                    <button
+                      onClick={() => deleteSkill(item.id)}
+                      className="ml-2 text-red-500 hover:text-red-700 font-bold"
+                    >
+                      ×
+                    </button>
+                  </div>
                 ))}
               </div>
             )}
           </div>
 
+          {/* LEARNING LIST - UPDATED WITH DELETE BUTTON */}
           <div className="bg-white p-6 rounded-xl shadow-md border-l-4 border-yellow-500">
             <h2 className="text-xl font-bold mb-3 text-gray-800">
               I Want to Learn 📚
@@ -233,12 +259,18 @@ function Home() {
             ) : (
               <div className="flex flex-wrap gap-2">
                 {learning.map((item) => (
-                  <span
+                  <div
                     key={item.id}
-                    className="bg-yellow-100 text-yellow-800 px-3 py-1 rounded-full text-sm font-medium"
+                    className="flex items-center bg-yellow-100 text-yellow-800 px-3 py-1 rounded-full text-sm font-medium"
                   >
-                    {item.skill.name}
-                  </span>
+                    <span>{item.skill.name}</span>
+                    <button
+                      onClick={() => deleteSkill(item.id)}
+                      className="ml-2 text-red-500 hover:text-red-700 font-bold"
+                    >
+                      ×
+                    </button>
+                  </div>
                 ))}
               </div>
             )}

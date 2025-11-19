@@ -40,14 +40,26 @@ def get_my_profile(request):
 @api_view(['GET', 'POST'])
 @permission_classes([IsAuthenticated])
 def my_skills(request):
-    # READ: Get all skills I am teaching or learning
+    # READ: Get all skills
     if request.method == 'GET':
         my_skills = UserSkill.objects.filter(user=request.user)
         serializer = UserSkillSerializer(my_skills, many=True)
         return Response(serializer.data)
 
-    # CREATE: Add a new skill to my profile
+    # CREATE: Add a new skill (WITH FREEMIUM CHECK)
     elif request.method == 'POST':
+        # 1. Check if user is Free or Pro
+        if not request.user.is_pro:
+            # 2. Count current skills
+            current_count = UserSkill.objects.filter(user=request.user).count()
+            # 3. The Gatekeeper Rule (Limit: 2)
+            if current_count >= 2:
+                return Response(
+                    {"error": "Free Plan Limit Reached. Upgrade to Pro to add more skills."}, 
+                    status=status.HTTP_403_FORBIDDEN
+                )
+
+        # ... If pass, continue as normal ...
         skill_name = request.data.get('skill_name')
         skill_type = request.data.get('skill_type')
         
@@ -79,3 +91,19 @@ def search_peers(request):
 
     serializer = UserSkillSerializer(matches, many=True)
     return Response(serializer.data)
+
+# --- For Skill deletion ---
+@api_view(['DELETE'])
+@permission_classes([IsAuthenticated])
+def delete_skill(request, skill_id):
+    try:
+        # 1. Find the connection (UserSkill)
+        # We filter by 'user=request.user' to ensure you can't delete someone else's skill
+        user_skill = UserSkill.objects.get(id=skill_id, user=request.user)
+        
+        # 2. Delete it
+        user_skill.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+    
+    except UserSkill.DoesNotExist:
+        return Response({"error": "Skill not found"}, status=status.HTTP_404_NOT_FOUND)
