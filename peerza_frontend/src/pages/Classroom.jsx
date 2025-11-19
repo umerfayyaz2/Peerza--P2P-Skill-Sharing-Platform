@@ -29,7 +29,7 @@ function Classroom() {
           <span>🎓</span> Peerza Classroom
         </h1>
         <button
-          onClick={() => navigate("/dashboard")} // Go back to dashboard, not landing page
+          onClick={() => navigate("/dashboard")}
           className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg text-sm font-bold transition"
         >
           Leave Class
@@ -44,14 +44,15 @@ function Classroom() {
             startWithAudioMuted: false,
             startWithVideoMuted: false,
             disableThirdPartyRequests: true,
-            prejoinPageEnabled: false, // Key: Skips the pre-join screen
+            prejoinPageEnabled: false,
             enableWelcomePage: false,
             enableClosePage: false,
-            // Try to force the meeting to start without a moderator
-            // Note: meet.jit.si may still enforce this on their public server
             disable1On1Mode: false,
             fileRecordingsEnabled: false,
             liveStreamingEnabled: false,
+            // Critical flags to disable lobby
+            lobbyModeEnabled: false,
+            securityOptionsEnabled: false,
             remoteVideoMenu: {
               disableKick: true,
             },
@@ -85,10 +86,11 @@ function Classroom() {
             ],
             SHOW_JITSI_WATERMARK: false,
             SHOW_WATERMARK_FOR_GUESTS: false,
-            DEFAULT_BACKGROUND: "#111827", // Matches bg-gray-900
+            DEFAULT_BACKGROUND: "#111827",
           }}
           userInfo={{
             displayName: myProfile.username,
+            email: myProfile.email, // Adding email sometimes helps Jitsi identify unique users
           }}
           getIFrameRef={(iframeRef) => {
             iframeRef.style.height = "100%";

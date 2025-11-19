@@ -4,6 +4,7 @@ import api from "../api";
 import "../index.css";
 
 function Home() {
+  // --- STATE MANAGEMENT ---
   const [skills, setSkills] = useState([]);
   const [skillName, setSkillName] = useState("");
   const [skillType, setSkillType] = useState("TEACH");
@@ -15,9 +16,12 @@ function Home() {
   const [searching, setSearching] = useState(false);
   const [hasSearched, setHasSearched] = useState(false);
 
+  // Call State (New!)
+  const [incomingCall, setIncomingCall] = useState(null);
+
   const navigate = useNavigate();
 
-  // --- 1. API CALLS ---
+  // --- 1. API CALLS (Data Fetching) ---
   const getProfile = () => {
     api
       .get("profile/")
@@ -32,6 +36,65 @@ function Home() {
       .catch(() => {});
   };
 
+  // --- 2. POLLING LOGIC (The "Active Call" Checker) ---
+  useEffect(() => {
+    // Poll every 3 seconds to see if anyone is calling
+    const checkCalls = setInterval(() => {
+      api
+        .get("call/check/")
+        .then((res) => {
+          if (res.data.active) {
+            setIncomingCall(res.data.caller);
+          } else {
+            setIncomingCall(null);
+          }
+        })
+        .catch(() => {});
+    }, 3000); // 3 seconds
+
+    return () => clearInterval(checkCalls); // Cleanup when leaving page
+  }, []);
+
+  // --- 3. ACTION HANDLERS ---
+
+  // Start a call (Caller side)
+  const startClass = (peerId) => {
+    api
+      .post(`call/start/${peerId}/`)
+      .then(() => {
+        // Navigate to room AFTER telling backend
+        navigate(`/room/${peerId}`);
+      })
+      .catch(() => alert("Could not connect call."));
+  };
+
+  // Join a call (Receiver side)
+  const joinClass = () => {
+    if (incomingCall) {
+      // Navigate to the caller's room ID
+      navigate(`/room/${incomingCall.id}`);
+    }
+  };
+
+  // Clean up the notification on the current screen (Ignore button)
+  const ignoreCall = () => {
+    if (incomingCall && incomingCall.caller) {
+      // We use the caller's ID as the "target" to end the call with
+      // In our new backend logic, this ID is just a placeholder for the URL,
+      // but the backend will automatically find the call involving 'Me' and end it.
+      const targetId = incomingCall.caller.id;
+
+      api
+        .post(`call/end/${targetId}/`)
+        .then(() => {
+          console.log("Call rejected successfully");
+          setIncomingCall(null); // Clear the notification from the screen instantly
+        })
+        .catch((err) => console.error("Failed to reject call:", err));
+    }
+  };
+
+  // --- Existing CRUD/Search Handlers ---
   const handleSearch = (e) => {
     e.preventDefault();
     if (!searchQuery.trim()) return;
@@ -76,6 +139,7 @@ function Home() {
     }
   };
 
+  // Initial Load
   useEffect(() => {
     getSkills();
     getProfile();
@@ -86,9 +150,40 @@ function Home() {
 
   return (
     <div className="max-w-7xl mx-auto mt-6 grid grid-cols-1 lg:grid-cols-12 gap-8">
+      {/* --- INCOMING CALL BANNER (Shows up when someone calls) --- */}
+      {incomingCall && (
+        <div className="lg:col-span-12 bg-indigo-600 text-white p-4 rounded-xl shadow-lg flex justify-between items-center animate-pulse border-2 border-indigo-400 mb-4">
+          <div className="flex items-center gap-3">
+            <span className="text-3xl">📞</span>
+            <div>
+              <h3 className="font-bold text-lg">
+                Incoming Call from {incomingCall.username}
+              </h3>
+              <p className="text-indigo-100 text-sm">
+                They want to start a class with you.
+              </p>
+            </div>
+          </div>
+          <div className="flex gap-3">
+            <button
+              onClick={ignoreCall} // Use the new ignore function
+              className="px-4 py-2 rounded-lg text-sm font-bold bg-indigo-800 hover:bg-indigo-900 transition"
+            >
+              Ignore
+            </button>
+            <button
+              onClick={joinClass}
+              className="px-6 py-2 rounded-lg text-sm font-bold bg-white text-indigo-600 hover:bg-gray-100 shadow-lg transition transform hover:scale-105"
+            >
+              Accept & Join 🎥
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* --- LEFT SIDEBAR (User Skills) --- */}
       <div className="lg:col-span-4 space-y-6">
-        {/* 1. Profile Summary Card */}
+        {/* Profile Summary */}
         <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6">
           <h2 className="text-2xl font-bold text-gray-800">
             Hi, <span className="text-indigo-600">{profile?.username}</span> 👋
@@ -98,7 +193,7 @@ function Home() {
           </p>
         </div>
 
-        {/* 2. My Skills Widget - HIGH DEF FIX */}
+        {/* My Skills Widget */}
         <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6">
           <div className="flex justify-between items-center mb-6">
             <h3 className="font-bold text-gray-800 text-lg">My Skills</h3>
@@ -113,69 +208,63 @@ function Home() {
             </span>
           </div>
 
-          <div className="space-y-5">
-            {/* TEACHING ZONE (Emerald) */}
-            <div className="bg-emerald-50 rounded-xl p-5 border border-emerald-100">
+          <div className="space-y-4">
+            <div className="bg-emerald-50 rounded-xl p-4 border border-emerald-100">
               <div className="flex items-center gap-2 mb-3">
-                <span className="text-xl">👨‍🏫</span>
+                <span className="text-lg">👨‍🏫</span>
                 <h4 className="text-xs font-extrabold text-emerald-800 uppercase tracking-widest">
                   I Teach
                 </h4>
               </div>
-
               <div className="flex flex-wrap gap-2">
                 {teaching.length > 0 ? (
                   teaching.map((item) => (
                     <span
                       key={item.id}
-                      className="inline-flex items-center bg-white text-emerald-700 px-3 py-2 rounded-lg text-sm font-bold shadow-sm border border-emerald-200"
+                      className="group inline-flex items-center bg-white text-emerald-700 px-3 py-1.5 rounded-lg text-sm font-bold shadow-sm border border-emerald-200 transition-transform hover:scale-105 cursor-default"
                     >
                       {item.skill.name}
                       <button
                         onClick={() => deleteSkill(item.id)}
-                        className="ml-2 w-5 h-5 flex items-center justify-center rounded-full text-gray-400 hover:bg-red-100 hover:text-red-600 transition-all"
-                        title="Remove skill"
+                        className="ml-2 text-gray-300 group-hover:text-red-500 font-bold transition-colors"
                       >
-                        &times;
+                        ×
                       </button>
                     </span>
                   ))
                 ) : (
-                  <span className="text-gray-400 text-sm italic">
+                  <span className="text-gray-400 text-sm italic pl-1">
                     Add a skill you can teach.
                   </span>
                 )}
               </div>
             </div>
 
-            {/* LEARNING ZONE (Amber) */}
-            <div className="bg-amber-50 rounded-xl p-5 border border-amber-100">
+            <div className="bg-amber-50 rounded-xl p-4 border border-amber-100">
               <div className="flex items-center gap-2 mb-3">
-                <span className="text-xl">📚</span>
+                <span className="text-lg">📚</span>
                 <h4 className="text-xs font-extrabold text-amber-800 uppercase tracking-widest">
                   I Learn
                 </h4>
               </div>
-
               <div className="flex flex-wrap gap-2">
                 {learning.length > 0 ? (
                   learning.map((item) => (
                     <span
                       key={item.id}
-                      className="inline-flex items-center bg-white text-amber-700 px-3 py-2 rounded-lg text-sm font-bold shadow-sm border border-amber-200"
+                      className="group inline-flex items-center bg-white text-amber-700 px-3 py-1.5 rounded-lg text-sm font-bold shadow-sm border border-amber-200 transition-transform hover:scale-105 cursor-default"
                     >
                       {item.skill.name}
                       <button
                         onClick={() => deleteSkill(item.id)}
-                        className="ml-2 w-5 h-5 flex items-center justify-center rounded-full text-gray-400 hover:bg-red-100 hover:text-red-600 transition-all"
-                        title="Remove skill"
+                        className="ml-2 text-gray-300 group-hover:text-red-500 font-bold transition-colors"
                       >
-                        &times;
+                        ×
                       </button>
                     </span>
                   ))
                 ) : (
-                  <span className="text-gray-400 text-sm italic">
+                  <span className="text-gray-400 text-sm italic pl-1">
                     Add a skill you want to learn.
                   </span>
                 )}
@@ -183,7 +272,6 @@ function Home() {
             </div>
           </div>
 
-          {/* Add Skill Form - HIGH DEF FIX */}
           <form
             onSubmit={addSkill}
             className="mt-8 pt-6 border-t border-gray-100"
@@ -192,7 +280,6 @@ function Home() {
               Add New Skill
             </p>
             <div className="space-y-3">
-              {/* Taller Input with Background */}
               <input
                 type="text"
                 placeholder="e.g. React Native"
@@ -201,8 +288,6 @@ function Home() {
                 onChange={(e) => setSkillName(e.target.value)}
                 className="w-full bg-gray-50 border border-gray-200 text-gray-900 text-sm rounded-xl focus:ring-indigo-500 focus:border-indigo-500 block w-full p-3 outline-none transition-all placeholder-gray-400"
               />
-
-              {/* Taller Select with Background */}
               <div className="relative">
                 <select
                   value={skillType}
@@ -212,24 +297,7 @@ function Home() {
                   <option value="TEACH">👨‍🏫 I can Teach</option>
                   <option value="LEARN">📚 I want to Learn</option>
                 </select>
-                {/* Custom Arrow Icon to ensure it looks good */}
-                <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-gray-500">
-                  <svg
-                    className="w-4 h-4"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth="2"
-                      d="M19 9l-7 7-7-7"
-                    ></path>
-                  </svg>
-                </div>
               </div>
-
               <button
                 type="submit"
                 className="w-full bg-indigo-600 text-white py-3 rounded-xl text-sm font-bold hover:bg-indigo-700 active:scale-95 transition-all shadow-lg shadow-indigo-200 mt-2"
@@ -243,7 +311,7 @@ function Home() {
 
       {/* --- RIGHT MAIN CONTENT (Search & Discovery) --- */}
       <div className="lg:col-span-8">
-        {/* Hero Search Bar - FIXED LAYOUT */}
+        {/* Hero Search Bar */}
         <div className="bg-indigo-600 rounded-2xl py-12 px-6 md:px-12 text-center shadow-lg mb-8 text-white flex flex-col items-center justify-center">
           <h1 className="text-3xl md:text-4xl font-extrabold mb-4">
             Find your next tutor
@@ -278,7 +346,6 @@ function Home() {
             </h2>
           )}
 
-          {/* Results Grid */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {searchResults.map((result) => (
               <div
@@ -304,17 +371,26 @@ function Home() {
                   </span>
                 </div>
 
-                <button
-                  onClick={() => navigate(`/peer/${result.user.id}`)}
-                  className="mt-auto w-full py-3 border-2 border-indigo-50 text-indigo-600 rounded-xl font-bold text-sm hover:bg-indigo-600 hover:text-white hover:border-indigo-600 transition-all"
-                >
-                  View Profile
-                </button>
+                {/* RESTORED VIEW PROFILE AND START CLASS BUTTONS */}
+                <div className="mt-auto flex gap-2">
+                  <button
+                    onClick={() => navigate(`/peer/${result.user.id}`)}
+                    className="flex-1 py-2 border border-gray-300 text-gray-600 rounded-xl font-bold text-sm hover:bg-gray-50 transition-all"
+                  >
+                    Profile 👤
+                  </button>
+                  <button
+                    onClick={() => startClass(result.user.id)}
+                    className="flex-1 py-2 bg-indigo-600 text-white rounded-xl font-bold text-sm hover:bg-indigo-700 transition-all shadow-md"
+                  >
+                    Class 🎥
+                  </button>
+                </div>
               </div>
             ))}
           </div>
 
-          {/* Empty State */}
+          {/* Empty States */}
           {hasSearched && searchResults.length === 0 && !searching && (
             <div className="text-center py-16 bg-white rounded-2xl border-2 border-dashed border-gray-200">
               <div className="text-5xl mb-4">🤔</div>
@@ -326,8 +402,6 @@ function Home() {
               </p>
             </div>
           )}
-
-          {/* Initial State */}
           {!hasSearched && (
             <div className="text-center py-20 opacity-50">
               <p className="text-gray-400 font-medium">
