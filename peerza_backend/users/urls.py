@@ -20,4 +20,7 @@ urlpatterns = [
 
     #Delete Skill
     path('delete-skill/<int:skill_id>/', views.delete_skill, name='delete_skill'),
+
+    # Public Profile Route
+    path('users/<int:pk>/', views.get_public_profile, name='public_profile'),
 ]

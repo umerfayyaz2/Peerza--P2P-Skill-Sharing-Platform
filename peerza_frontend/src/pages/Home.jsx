@@ -137,10 +137,10 @@ function Home() {
                     </p>
                   </div>
                   <button
-                    onClick={() => navigate(`/room/${result.user.id}`)}
-                    className="bg-white border border-indigo-600 text-indigo-600 px-3 py-1 rounded hover:bg-indigo-50 text-sm font-bold"
+                    onClick={() => navigate(`/peer/${result.user.id}`)} // Changed to /peer/
+                    className="bg-white border border-indigo-600 text-indigo-600 px-3 py-1 rounded hover:bg-indigo-50 text-sm font-bold transition"
                   >
-                    Start Class 🎥
+                    View Profile 👤
                   </button>
                 </div>
               ))}

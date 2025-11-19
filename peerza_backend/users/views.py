@@ -107,3 +107,27 @@ def delete_skill(request, skill_id):
     
     except UserSkill.DoesNotExist:
         return Response({"error": "Skill not found"}, status=status.HTTP_404_NOT_FOUND)
+    
+# public profile endpoint
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def get_public_profile(request, pk):
+    try:
+        # 1. Get the User
+        user = User.objects.get(id=pk)
+        
+        # 2. Get their Skills
+        user_skills = UserSkill.objects.filter(user=user)
+        
+        # 3. Serialize both
+        user_data = UserSerializer(user).data
+        skills_data = UserSkillSerializer(user_skills, many=True).data
+        
+        # 4. Return combined data
+        return Response({
+            "user": user_data,
+            "skills": skills_data
+        })
+        
+    except User.DoesNotExist:
+        return Response({"error": "User not found"}, status=status.HTTP_404_NOT_FOUND)
