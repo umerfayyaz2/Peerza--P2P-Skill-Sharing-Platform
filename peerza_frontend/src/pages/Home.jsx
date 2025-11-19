@@ -87,12 +87,21 @@ function Home() {
           </h1>
           <p className="text-gray-500">Manage your skills and find peers.</p>
         </div>
-        <a
-          href="/logout"
-          className="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600 transition"
-        >
-          Logout
-        </a>
+        <div className="space-x-4">
+          {/* New Settings Link */}
+          <a
+            href="/settings"
+            className="text-indigo-600 font-bold hover:underline transition"
+          >
+            Settings ⚙️
+          </a>
+          <a
+            href="/logout"
+            className="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600 transition"
+          >
+            Logout
+          </a>
+        </div>
       </div>
 
       {/* --- SEARCH BAR SECTION --- */}

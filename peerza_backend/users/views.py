@@ -4,12 +4,12 @@ from rest_framework.response import Response
 from rest_framework import status
 from .serializers import RegisterSerializer, UserSerializer, UserSkillSerializer, SkillSerializer
 from .models import User, UserSkill, Skill
-from django.db.models import Q
+from django.db.models import Q # Needed for search
 
 # --- AUTHENTICATION ---
 
 @api_view(['POST'])
-@permission_classes([AllowAny]) # Anyone can register
+@permission_classes([AllowAny])
 def register_user(request):
     serializer = RegisterSerializer(data=request.data)
     if serializer.is_valid():
@@ -17,16 +17,25 @@ def register_user(request):
         return Response(serializer.data, status=status.HTTP_201_CREATED)
     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-# --- PROFILE ---
+# --- PROFILE MANAGEMENT (Updated for Step 43) ---
 
-@api_view(['GET'])
-@permission_classes([IsAuthenticated]) # Must be logged in
+@api_view(['GET', 'PATCH'])
+@permission_classes([IsAuthenticated])
 def get_my_profile(request):
-    # 'request.user' is automatically set by Django if the token is valid
-    serializer = UserSerializer(request.user)
-    return Response(serializer.data)
+    # 1. READ Profile
+    if request.method == 'GET':
+        serializer = UserSerializer(request.user)
+        return Response(serializer.data)
 
-# --- SKILLS (CRUD) ---
+    # 2. UPDATE Profile
+    elif request.method == 'PATCH':
+        serializer = UserSerializer(request.user, data=request.data, partial=True)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+# --- SKILLS CRUD ---
 
 @api_view(['GET', 'POST'])
 @permission_classes([IsAuthenticated])
@@ -39,15 +48,11 @@ def my_skills(request):
 
     # CREATE: Add a new skill to my profile
     elif request.method == 'POST':
-        # 1. Get data from frontend
         skill_name = request.data.get('skill_name')
-        skill_type = request.data.get('skill_type') # 'TEACH' or 'LEARN'
+        skill_type = request.data.get('skill_type')
         
-        # 2. Check/Create the Skill object first
-        # get_or_create prevents duplicates in the main Skill table
         skill_obj, created = Skill.objects.get_or_create(name=skill_name)
 
-        # 3. Link it to the user
         user_skill = UserSkill.objects.create(
             user=request.user,
             skill=skill_obj,
@@ -56,25 +61,21 @@ def my_skills(request):
         
         return Response({"message": "Skill added!"}, status=status.HTTP_201_CREATED)
 
+# --- MATCHMAKING / SEARCH ---
+
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def search_peers(request):
-    # 1. Capture the search term (e.g., "Python")
     query = request.query_params.get('skill', '')
 
     if not query:
         return Response({"message": "Please provide a skill to search for."}, status=status.HTTP_400_BAD_REQUEST)
 
-    # 2. The Filter Logic
-    # Find UserSkill entries where:
-    # - The skill name contains the query (case-insensitive)
-    # - The type is 'TEACH' (we are looking for teachers)
-    # - The user is NOT me (I don't need to find myself)
+    # Filter: Find users teaching the skill, excluding myself
     matches = UserSkill.objects.filter(
         skill__name__icontains=query, 
         skill_type='TEACH'
     ).exclude(user=request.user)
 
-    # 3. Return the results
     serializer = UserSkillSerializer(matches, many=True)
     return Response(serializer.data)

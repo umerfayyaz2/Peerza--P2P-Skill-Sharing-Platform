@@ -1,9 +1,10 @@
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
-import ProtectedRoute from "./components/ProtectedRoute";
 import Home from "./pages/Home";
 import Classroom from "./pages/Classroom";
+import Settings from "./pages/Settings"; // <--- 1. IMPORT ADDED HERE
+import ProtectedRoute from "./components/ProtectedRoute";
 
 function Logout() {
   localStorage.clear();
@@ -20,7 +21,6 @@ function App() {
     <BrowserRouter>
       <Routes>
         {/* 1. Protected Route: The Dashboard */}
-        {/* If user is NOT logged in, ProtectedRoute kicks them to /login */}
         <Route
           path="/"
           element={
@@ -30,12 +30,23 @@ function App() {
           }
         />
 
+        {/* --- NEW ROUTE ADDED HERE --- */}
+        {/* Protected Route: Settings Page */}
+        <Route
+          path="/settings"
+          element={
+            <ProtectedRoute>
+              <Settings />
+            </ProtectedRoute>
+          }
+        />
+
         {/* 2. Public Routes */}
         <Route path="/login" element={<Login />} />
         <Route path="/logout" element={<Logout />} />
         <Route path="/register" element={<RegisterAndLogout />} />
 
-        {/* --- NEW VIDEO CLASSROOM ROUTE --- */}
+        {/* 3. Video Classroom Route */}
         <Route
           path="/room/:peerId"
           element={
@@ -45,7 +56,7 @@ function App() {
           }
         />
 
-        {/* 3. Fallback: If 404, go home */}
+        {/* 4. Fallback: If 404, go home */}
         <Route path="*" element={<Navigate to="/" />} />
       </Routes>
     </BrowserRouter>
