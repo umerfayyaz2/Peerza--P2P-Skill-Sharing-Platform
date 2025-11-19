@@ -1,66 +1,262 @@
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
-import Login from "./pages/Login";
-import Register from "./pages/Register";
-import Home from "./pages/Home";
-import Classroom from "./pages/Classroom";
-import Settings from "./pages/Settings"; // <--- 1. IMPORT ADDED HERE
-import ProtectedRoute from "./components/ProtectedRoute";
+import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
+import api from "../api";
+import "../index.css";
 
-function Logout() {
-  localStorage.clear();
-  return <Navigate to="/login" />;
-}
+function Home() {
+  const [skills, setSkills] = useState([]);
+  const [skillName, setSkillName] = useState("");
+  const [skillType, setSkillType] = useState("TEACH");
+  const [profile, setProfile] = useState(null);
 
-function RegisterAndLogout() {
-  localStorage.clear();
-  return <Register />;
-}
+  // --- SEARCH STATE ---
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchResults, setSearchResults] = useState([]);
+  const [searching, setSearching] = useState(false);
 
-function App() {
+  // --- Navigation HOOK ---
+  const navigate = useNavigate();
+
+  // --- 1. DEFINE FUNCTIONS ---
+
+  const getProfile = () => {
+    api
+      .get("profile/")
+      .then((res) => res.data)
+      .then((data) => setProfile(data))
+      .catch((err) => alert(err));
+  };
+
+  const getSkills = () => {
+    api
+      .get("my-skills/")
+      .then((res) => res.data)
+      .then((data) => setSkills(data))
+      .catch((err) => alert(err));
+  };
+
+  const handleSearch = (e) => {
+    e.preventDefault();
+    setSearching(true);
+    api
+      .get(`search/?skill=${searchQuery}`)
+      .then((res) => {
+        setSearchResults(res.data);
+      })
+      .catch(() => alert("Search failed"))
+      .finally(() => setSearching(false));
+  };
+
+  const addSkill = (e) => {
+    e.preventDefault();
+    api
+      .post("my-skills/", { skill_name: skillName, skill_type: skillType })
+      .then((res) => {
+        if (res.status === 201) {
+          alert("Skill Added!");
+          setSkillName("");
+          getSkills();
+        }
+      })
+      .catch((err) => {
+        if (err.response && err.response.data && err.response.data.error) {
+          alert(err.response.data.error);
+        } else {
+          alert("Failed to add skill.");
+        }
+      });
+  };
+
+  const deleteSkill = (id) => {
+    if (confirm("Are you sure you want to delete this skill?")) {
+      api
+        .delete(`delete-skill/${id}/`)
+        .then((res) => {
+          if (res.status === 204) {
+            getSkills();
+          } else {
+            alert("Failed to delete");
+          }
+        })
+        .catch((err) => alert(err));
+    }
+  };
+
+  // --- 2. USE EFFECTS ---
+
+  useEffect(() => {
+    getSkills();
+    getProfile();
+  }, []);
+
+  const teaching = skills.filter((s) => s.skill_type === "TEACH");
+  const learning = skills.filter((s) => s.skill_type === "LEARN");
+
   return (
-    <BrowserRouter>
-      <Routes>
-        {/* 1. Protected Route: The Dashboard */}
-        <Route
-          path="/"
-          element={
-            <ProtectedRoute>
-              <Home />
-            </ProtectedRoute>
-          }
-        />
+    <div className="min-h-screen bg-gray-50 p-8">
+      {/* Welcome Message (Navigation links removed - now in Navbar) */}
+      <div className="max-w-4xl mx-auto mb-10">
+        <h1 className="text-3xl font-bold text-gray-800">
+          Hello, <span className="text-indigo-600">{profile?.username}</span> 👋
+        </h1>
+        <p className="text-gray-500">Manage your skills and find peers.</p>
+      </div>
 
-        {/* --- NEW ROUTE ADDED HERE --- */}
-        {/* Protected Route: Settings Page */}
-        <Route
-          path="/settings"
-          element={
-            <ProtectedRoute>
-              <Settings />
-            </ProtectedRoute>
-          }
-        />
+      {/* --- SEARCH BAR SECTION --- */}
+      <div className="max-w-4xl mx-auto bg-white p-6 rounded-xl shadow-md mb-8 border border-indigo-100">
+        <h2 className="text-2xl font-bold mb-4 text-gray-800">
+          🔍 Find a Tutor
+        </h2>
+        <form onSubmit={handleSearch} className="flex gap-2">
+          <input
+            type="text"
+            placeholder="What do you want to learn? (e.g. Python)"
+            className="flex-1 p-3 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+          />
+          <button
+            type="submit"
+            className="bg-indigo-600 text-white px-6 py-3 rounded font-bold hover:bg-indigo-700 transition"
+          >
+            {searching ? "Searching..." : "Search"}
+          </button>
+        </form>
 
-        {/* 2. Public Routes */}
-        <Route path="/login" element={<Login />} />
-        <Route path="/logout" element={<Logout />} />
-        <Route path="/register" element={<RegisterAndLogout />} />
+        {/* Search Results Area */}
+        <div className="mt-6">
+          {searchResults.length > 0 && (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {searchResults.map((result) => (
+                <div
+                  key={result.id}
+                  className="p-4 border rounded-lg bg-gray-50 flex justify-between items-center hover:shadow-md transition"
+                >
+                  <div>
+                    <h3 className="font-bold text-lg">
+                      {result.user.username}
+                    </h3>
+                    <p className="text-sm text-gray-500">
+                      Can teach:{" "}
+                      <span className="font-semibold text-green-600">
+                        {result.skill.name}
+                      </span>
+                    </p>
+                    <p className="text-xs text-gray-400">
+                      Level: {result.proficiency}
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => navigate(`/room/${result.user.id}`)}
+                    className="bg-white border border-indigo-600 text-indigo-600 px-3 py-1 rounded hover:bg-indigo-50 text-sm font-bold"
+                  >
+                    Start Class 🎥
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+          {searchResults.length === 0 && searchQuery && !searching && (
+            <p className="text-gray-400 mt-2">
+              No tutors found. Try a different skill.
+            </p>
+          )}
+        </div>
+      </div>
 
-        {/* 3. Video Classroom Route */}
-        <Route
-          path="/room/:peerId"
-          element={
-            <ProtectedRoute>
-              <Classroom />
-            </ProtectedRoute>
-          }
-        />
+      {/* Your Skills Grid */}
+      <div className="max-w-4xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-8">
+        {/* Add Skill Form */}
+        <div className="bg-white p-6 rounded-xl shadow-md h-fit">
+          <h2 className="text-xl font-bold mb-4 text-gray-700">Add a Skill</h2>
+          <form onSubmit={addSkill}>
+            <label className="block text-sm text-gray-600 mb-2">
+              Skill Name (e.g. Python)
+            </label>
+            <input
+              type="text"
+              required
+              value={skillName}
+              onChange={(e) => setSkillName(e.target.value)}
+              className="w-full p-2 border rounded mb-4 focus:ring-2 focus:ring-indigo-500 outline-none"
+            />
+            <label className="block text-sm text-gray-600 mb-2">
+              I want to...
+            </label>
+            <select
+              value={skillType}
+              onChange={(e) => setSkillType(e.target.value)}
+              className="w-full p-2 border rounded mb-6 focus:ring-2 focus:ring-indigo-500 outline-none"
+            >
+              <option value="TEACH">Teach this (Offer)</option>
+              <option value="LEARN">Learn this (Request)</option>
+            </select>
+            <button
+              type="submit"
+              className="w-full bg-indigo-600 text-white py-2 rounded font-bold hover:bg-indigo-700"
+            >
+              Add to Profile
+            </button>
+          </form>
+        </div>
 
-        {/* 4. Fallback: If 404, go home */}
-        <Route path="*" element={<Navigate to="/" />} />
-      </Routes>
-    </BrowserRouter>
+        {/* Display Skills */}
+        <div className="space-y-6">
+          <div className="bg-white p-6 rounded-xl shadow-md border-l-4 border-green-500">
+            <h2 className="text-xl font-bold mb-3 text-gray-800">
+              I Can Teach 👨‍🏫
+            </h2>
+            {teaching.length === 0 ? (
+              <p className="text-gray-400 text-sm">No skills listed yet.</p>
+            ) : (
+              <div className="flex flex-wrap gap-2">
+                {teaching.map((item) => (
+                  <div
+                    key={item.id}
+                    className="flex items-center bg-green-100 text-green-800 px-3 py-1 rounded-full text-sm font-medium"
+                  >
+                    <span>{item.skill.name}</span>
+                    <button
+                      onClick={() => deleteSkill(item.id)}
+                      className="ml-2 text-red-500 hover:text-red-700 font-bold"
+                    >
+                      ×
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <div className="bg-white p-6 rounded-xl shadow-md border-l-4 border-yellow-500">
+            <h2 className="text-xl font-bold mb-3 text-gray-800">
+              I Want to Learn 📚
+            </h2>
+            {learning.length === 0 ? (
+              <p className="text-gray-400 text-sm">No learning goals yet.</p>
+            ) : (
+              <div className="flex flex-wrap gap-2">
+                {learning.map((item) => (
+                  <div
+                    key={item.id}
+                    className="flex items-center bg-yellow-100 text-yellow-800 px-3 py-1 rounded-full text-sm font-medium"
+                  >
+                    <span>{item.skill.name}</span>
+                    <button
+                      onClick={() => deleteSkill(item.id)}
+                      className="ml-2 text-red-500 hover:text-red-700 font-bold"
+                    >
+                      ×
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
   );
 }
 
-export default App;
+export default Home;
