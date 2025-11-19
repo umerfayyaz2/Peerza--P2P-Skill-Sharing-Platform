@@ -3,11 +3,11 @@ import Footer from "./Footer";
 
 function Layout({ children }) {
   return (
-    <div className="min-h-screen flex flex-col bg-gray-50">
-      {/* The Navbar stays fixed at top */}
+    // 👇 CHANGE THE CLASS BELOW TO SWITCH THEMES 👇
+    <div className="min-h-screen flex flex-col bg-slate-100">
       <Navbar />
 
-      {/* This 'main' area pushes content down so it's not hidden behind the fixed Navbar */}
+      {/* The main content area */}
       <main className="flex-grow pt-20 pb-10 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto w-full">
         {children}
       </main>
