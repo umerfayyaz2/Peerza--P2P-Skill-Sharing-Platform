@@ -4,6 +4,8 @@ from rest_framework_simplejwt.views import (
     TokenObtainPairView,
     TokenRefreshView,
 )
+from .views import mark_notification_read
+
 
 urlpatterns = [
     # --- Authentication ---
@@ -49,5 +51,7 @@ urlpatterns = [
     path("friends/requests/", views.friend_requests_inbox),
     path("friends/request/<int:user_id>/", views.friend_request_send),
     path("friends/request/respond/<int:request_id>/", views.friend_request_respond),
+
+    path("notifications/mark-read/<int:notification_id>/", mark_notification_read),
 
 ]

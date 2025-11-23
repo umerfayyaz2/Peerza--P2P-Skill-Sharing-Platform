@@ -77,7 +77,16 @@ export default function NotificationsBell() {
             {items.map((n) => (
               <div
                 key={n.id}
-                className="px-3 py-2 border-b text-sm hover:bg-gray-50 transition"
+                onClick={async () => {
+                  try {
+                    await api.post(`notifications/mark-read/${n.id}/`);
+                    setItems((prev) => prev.filter((i) => i.id !== n.id));
+                    setCount((prev) => prev - 1);
+                  } catch (err) {
+                    console.error("Mark read error:", err);
+                  }
+                }}
+                className="px-3 py-2 border-b text-sm hover:bg-gray-50 cursor-pointer transition"
               >
                 <span className="font-medium">{n.actor?.username}</span>{" "}
                 {n.type === "FRIEND_REQUEST" && "sent you a friend request 💌"}

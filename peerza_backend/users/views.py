@@ -509,3 +509,11 @@ def friend_requests_inbox(request):
     ).select_related("from_user")
     data = FriendRequestSerializer(qs, many=True).data
     return Response(data, status=200)
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def mark_notification_read(request, notification_id):
+    notification = Notification.objects.get(id=notification_id, user=request.user)
+    notification.is_read = True
+    notification.save()
+    return Response({"message": "Marked as read"}, status=status.HTTP_200_OK)
