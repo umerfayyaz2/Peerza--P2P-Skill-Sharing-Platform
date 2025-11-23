@@ -1,11 +1,13 @@
 import { Link, useLocation } from "react-router-dom";
+import NotificationsBell from "./NotificationsBell"; // ✅ Added import
 
 function Navbar() {
   const location = useLocation();
   const isActive = (path) => location.pathname === path;
 
   return (
-    <nav className="bg-white border-b border-gray-200 fixed w-full top-0 z-50 shadow-sm">
+    // ✅ Updated: made navbar sticky + higher z-index for overlay consistency
+    <nav className="sticky top-0 z-[1100] bg-white border-b border-gray-200 w-full shadow-sm">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between h-16">
           <div className="flex items-center">
@@ -16,7 +18,8 @@ function Navbar() {
             </Link>
           </div>
 
-          <div className="flex items-center space-x-4">
+          {/* ✅ Right-side controls updated */}
+          <div className="ml-auto flex items-center gap-3">
             <Link
               to="/dashboard"
               className={`px-3 py-2 rounded-md text-sm font-medium transition duration-150 ease-in-out ${
@@ -46,6 +49,9 @@ function Navbar() {
             >
               Get Pro 👑
             </Link>
+
+            {/* ✅ Notification Bell inserted here */}
+            <NotificationsBell />
 
             <div className="h-6 w-px bg-gray-300 mx-2"></div>
 

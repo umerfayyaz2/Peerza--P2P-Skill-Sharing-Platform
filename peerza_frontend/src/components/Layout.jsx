@@ -1,5 +1,7 @@
 import Navbar from "./Navbar";
 import Footer from "./Footer";
+import ChatWidget from "./ChatWidget"; // <--- Import from firebase
+import PeerChatWidget from "./PeerChatWidget"; // new Django chat
 
 function Layout({ children }) {
   return (
@@ -13,6 +15,10 @@ function Layout({ children }) {
       </main>
 
       <Footer />
+
+      {/* Add the Chat Widget here */}
+      <ChatWidget />
+      <PeerChatWidget />
     </div>
   );
 }

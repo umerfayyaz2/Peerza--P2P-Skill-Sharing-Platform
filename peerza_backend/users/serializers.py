@@ -1,44 +1,110 @@
 from rest_framework import serializers
-from .models import User, Skill, UserSkill
+from .models import User, Skill, UserSkill, Meeting, Notification, Message,FriendRequest, Friendship # ✅ added Message
+
 
 # 1. Skill Serializer
-# Converts the simple "Skill" object to JSON
 class SkillSerializer(serializers.ModelSerializer):
     class Meta:
         model = Skill
         fields = ['id', 'name']
 
+
 # 2. User Serializer
-# Shows public user info. Notice we do NOT include the password here.
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
         fields = ['id', 'username', 'bio', 'is_pro', 'avatar']
 
+
 # 3. UserSkill Serializer
-# This shows the link: "Umer teaches Python"
-# We use 'depth=1' to automatically pull the details of the Skill and User instead of just IDs.
 class UserSkillSerializer(serializers.ModelSerializer):
     skill = SkillSerializer(read_only=True)
     user = UserSerializer(read_only=True)
+
     class Meta:
         model = UserSkill
         fields = ['id', 'user', 'skill', 'proficiency', 'skill_type']
 
-# 4. Registration Serializer (CRITICAL)
-# This handles creating a new user and HASHING the password.
+
+# 4. Registration Serializer
 class RegisterSerializer(serializers.ModelSerializer):
     password = serializers.CharField(write_only=True)
 
     class Meta:
         model = User
-        fields = ['username', 'password', 'email']
+        fields = ['username', 'password', 'email']  # email is optional
 
     def create(self, validated_data):
-        # We use create_user instead of create to ensure password is hashed
+        username = validated_data['username']
+        raw_email = validated_data.get('email')
+        email = raw_email or None  # turn "" into None
+
         user = User.objects.create_user(
-            username=validated_data['username'],
-            email=validated_data.get('email'),
+            username=username,
+            email=email,
             password=validated_data['password']
         )
         return user
+
+
+# 5. Meeting Serializer
+class MeetingSerializer(serializers.ModelSerializer):
+    host = UserSerializer(read_only=True)
+    guest = serializers.PrimaryKeyRelatedField(queryset=User.objects.all())
+
+    class Meta:
+        model = Meeting
+        fields = [
+            'id',
+            'host',
+            'guest',
+            'topic',
+            'start_datetime',
+            'end_datetime',
+            'status',
+            'jitsi_room',
+            'created_at'
+        ]
+
+
+# 6. Notification Serializer
+class NotificationSerializer(serializers.ModelSerializer):
+    user = UserSerializer(read_only=True)
+    actor = UserSerializer(read_only=True)
+
+    class Meta:
+        model = Notification
+        fields = [
+            'id',
+            'user',
+            'actor',
+            'type',
+            'data',
+            'is_read',
+            'created_at'
+        ]
+
+
+# 7. Message Serializer ✅ (NEW)
+class MessageSerializer(serializers.ModelSerializer):
+    sender = UserSerializer(read_only=True)
+    receiver = UserSerializer(read_only=True)
+
+    class Meta:
+        model = Message
+        fields = ["id", "sender", "receiver", "content", "timestamp", "is_read"]
+
+class FriendRequestSerializer(serializers.ModelSerializer):
+    from_user = UserSerializer(read_only=True)
+    to_user   = UserSerializer(read_only=True)
+
+    class Meta:
+        model = FriendRequest
+        fields = ["id", "from_user", "to_user", "status", "created_at"]
+
+class FriendshipSerializer(serializers.ModelSerializer):
+    friend = UserSerializer(read_only=True)
+
+    class Meta:
+        model = Friendship
+        fields = ["id", "friend", "created_at"]

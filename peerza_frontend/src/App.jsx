@@ -14,6 +14,7 @@ import GetPro from "./pages/GetPro";
 import About from "./pages/About";
 import Privacy from "./pages/Privacy";
 import Terms from "./pages/Terms";
+import Friends from "./pages/Friends";
 
 function Logout() {
   localStorage.clear();
@@ -118,6 +119,7 @@ function App() {
         <Route path="/login" element={<Login />} />
         <Route path="/logout" element={<Logout />} />
         <Route path="/register" element={<RegisterAndLogout />} />
+        <Route path="/friends" element={<Friends />} />
 
         {/* Fallback */}
         <Route path="*" element={<Navigate to="/" />} />

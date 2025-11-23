@@ -3,46 +3,135 @@ import api from "../api";
 import { useNavigate } from "react-router-dom";
 import { ACCESS_TOKEN, REFRESH_TOKEN } from "../constants";
 
+// ✅ IMPORTS THAT MATCH firebaseConfig.js EXACTLY
+import {
+  auth,
+  database,
+  signInAnonymously,
+  ref,
+  set,
+  onDisconnect,
+} from "../firebaseConfig";
+
 function Form({ route, method }) {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
-  const navigate = useNavigate();
+  const [email, setEmail] = useState("");
 
-  // 1. Determine the title based on the method prop
+  const navigate = useNavigate();
   const name = method === "login" ? "Login" : "Register";
 
   const handleSubmit = async (e) => {
+    e.preventDefault();
     setLoading(true);
-    e.preventDefault(); // Prevent the page from refreshing
 
     try {
-      // 2. Dynamic API Call
-      // If method is login, route is "/api/token/"
-      // If method is register, route is "/api/register/"
-      const res = await api.post(route, { username, password });
+      // -----------------------------------------
+      // STEP 1: Django Authentication (Login/Register)
+      // -----------------------------------------
+      const payload =
+        method === "register"
+          ? { username, email, password }
+          : { username, password };
+
+      const res = await api.post(route, payload);
 
       if (method === "login") {
-        // 3. Login Success Logic
-        // Save the digital ID cards (tokens) to the browser's memory
-        localStorage.setItem(ACCESS_TOKEN, res.data.access);
-        localStorage.setItem(REFRESH_TOKEN, res.data.refresh);
+        console.log("✅ Django response data:", res.data);
+        const access = res.data.access;
+        const refresh = res.data.refresh;
 
-        // --- FIX APPLIED HERE ---
-        // Redirect to the new Dashboard route instead of the Landing Page
+        // Save JWT tokens
+        localStorage.setItem(ACCESS_TOKEN, access);
+        localStorage.setItem(REFRESH_TOKEN, refresh);
+
+        // Ensure future requests include Authorization header
+        api.defaults.headers.common["Authorization"] = `Bearer ${access}`;
+
+        // -----------------------------------------
+        // STEP 2: Firebase Anonymous Login
+        // -----------------------------------------
+        const firebaseRes = await signInAnonymously(auth);
+        const firebaseUid = firebaseRes.user.uid;
+        console.log("🔥 Firebase UID:", firebaseUid);
+
+        // -----------------------------------------
+        // STEP 3: Send Firebase UID → Django Backend
+        // -----------------------------------------
+        await api.post("firebase/register-uid/", {
+          firebase_uid: firebaseUid,
+        });
+
+        console.log("🔥 Firebase UID registered in Django backend");
+
+        // -----------------------------------------
+        // STEP 4: Presence System (Realtime Database)
+        // -----------------------------------------
+        const presenceRef = ref(database, `presence/${firebaseUid}`);
+
+        // Mark user online
+        await set(presenceRef, {
+          online: true,
+          last_active: new Date().toISOString(),
+        });
+
+        // Automatically set offline when disconnected
+        onDisconnect(presenceRef).set({
+          online: false,
+          last_active: new Date().toISOString(),
+        });
+
+        console.log("🔥 Presence system activated");
+
+        // -----------------------------------------
+        // STEP 5: Redirect to dashboard
+        // -----------------------------------------
         navigate("/dashboard");
       } else {
-        // 4. Register Success Logic
-        // Send user to login page to sign in with new account
+        // Registration success → redirect to login page
         navigate("/login");
       }
     } catch (error) {
-      alert(error);
+      // -----------------------------------------
+      // ERROR HANDLING
+      // -----------------------------------------
+      console.error("❌ Login/Register Error:", error);
+
+      if (error.response) {
+        console.error("Backend response:", error.response.data);
+
+        if (method === "register") {
+          alert(
+            `Registration failed: ${
+              error.response?.data?.email ||
+              error.response?.data?.username ||
+              error.response?.data?.detail ||
+              "Please try again."
+            }`
+          );
+        } else {
+          alert(
+            `Login failed: ${
+              error.response?.data?.detail || "Invalid credentials"
+            }`
+          );
+        }
+      } else {
+        alert(
+          method === "register"
+            ? "Registration failed. Please check your connection."
+            : "Login failed. Please check your connection."
+        );
+      }
     } finally {
       setLoading(false);
     }
   };
 
+  // -----------------------------------------
+  // RETURN UI
+  // -----------------------------------------
   return (
     <form
       onSubmit={handleSubmit}
@@ -58,7 +147,19 @@ function Form({ route, method }) {
         value={username}
         onChange={(e) => setUsername(e.target.value)}
         placeholder="Username"
+        required
       />
+
+      {method === "register" && (
+        <input
+          className="w-full p-3 mb-4 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-indigo-500"
+          type="email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          placeholder="Email"
+          required
+        />
+      )}
 
       <input
         className="w-full p-3 mb-6 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-indigo-500"
@@ -66,14 +167,15 @@ function Form({ route, method }) {
         value={password}
         onChange={(e) => setPassword(e.target.value)}
         placeholder="Password"
+        required
       />
 
       <button
-        className="w-full bg-indigo-600 text-white p-3 rounded hover:bg-indigo-700 transition duration-200 font-bold"
         type="submit"
         disabled={loading}
+        className="w-full bg-indigo-600 text-white p-3 rounded hover:bg-indigo-700 transition duration-200 font-bold"
       >
-        {loading ? "Processing..." : name}
+        {loading ? "Processing…" : name}
       </button>
     </form>
   );
