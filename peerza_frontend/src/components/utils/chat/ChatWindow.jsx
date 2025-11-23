@@ -52,11 +52,10 @@ function ChatWindow() {
       setIsPeerOnline(val?.online === true || val === "online");
     });
 
-    // CLEANUP — React-safe: clears messages ONLY during unmount or peer switch
     return () => {
       unsubMsg();
       unsubPresence();
-      setMessages([]); // SAFE HERE — cleanup is allowed to use setState
+      setMessages([]);
     };
   }, [roomId, activeChatPeer]);
 
@@ -82,7 +81,6 @@ function ChatWindow() {
 
     await push(ref(database, `chats/${roomId}/messages`), msgData);
 
-    // Update conversation lists
     await set(
       ref(database, `users/${myProfile.id}/conversations/${activeChatPeer.id}`),
       {
@@ -110,7 +108,7 @@ function ChatWindow() {
     <div className="flex flex-col h-full bg-white">
       {/* Header */}
       <div className="bg-indigo-600 p-3 flex items-center justify-between text-white shadow-md">
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 overflow-hidden">
           <button
             onClick={() => setActiveChatPeer(null)}
             className="hover:bg-white/20 p-1 rounded"
@@ -118,8 +116,11 @@ function ChatWindow() {
             <ArrowLeft size={20} />
           </button>
 
-          <div>
-            <h3 className="font-bold text-sm">{activeChatPeer.username}</h3>
+          <div className="overflow-hidden">
+            {/* ✅ Fixed: username truncation for long names */}
+            <h3 className="truncate max-w-[200px] font-semibold text-white text-ellipsis whitespace-nowrap">
+              {activeChatPeer.username}
+            </h3>
             <p className="text-xs flex items-center gap-1">
               <span
                 className={`w-2 h-2 rounded-full ${

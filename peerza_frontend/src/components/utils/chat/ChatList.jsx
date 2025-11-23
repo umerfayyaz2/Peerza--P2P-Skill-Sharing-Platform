@@ -48,15 +48,31 @@ function ChatList() {
             onClick={() => openChatWith(peer)}
             className="flex items-center gap-3 p-3 hover:bg-gray-100 rounded-lg cursor-pointer transition border-b border-gray-100"
           >
-            <div className="w-10 h-10 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-600 font-bold">
+            {/* Profile circle with online indicator */}
+            <div className="relative w-10 h-10 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-600 font-bold">
               {peer.username?.charAt(0).toUpperCase() || <User size={18} />}
+              <span
+                className={`absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-white ${
+                  peer.is_online ? "bg-green-500" : "bg-gray-400"
+                }`}
+              ></span>
             </div>
-            <div>
-              <p className="font-bold text-gray-800 text-sm">{peer.username}</p>
+
+            <div className="flex-1 min-w-0">
+              <p className="truncate font-semibold text-gray-800 text-sm">
+                {peer.username}
+              </p>
               <p className="text-xs text-gray-500 truncate w-40">
                 {peer.lastMessage || "Start a chat"}
               </p>
             </div>
+
+            {/* Unread message badge */}
+            {peer.unread_count > 0 && (
+              <span className="bg-red-600 text-white text-[10px] font-bold rounded-full px-2 py-[1px]">
+                {peer.unread_count > 9 ? "9+" : peer.unread_count}
+              </span>
+            )}
           </div>
         ))}
       </div>
