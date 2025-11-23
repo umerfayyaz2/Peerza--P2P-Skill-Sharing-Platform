@@ -10,38 +10,45 @@ const api = axios.create({
   baseURL: BASE_URL,
 });
 
-// ---- Attach token on every request ----
+// ---- Attach token to every request ----
 api.interceptors.request.use((config) => {
   const token = localStorage.getItem(ACCESS_TOKEN);
   if (token) config.headers.Authorization = `Bearer ${token}`;
   return config;
 });
 
-// ---- Auto refresh expired tokens ----
+// ---- Handle token expiration & refresh automatically ----
 api.interceptors.response.use(
   (response) => response,
   async (error) => {
-    const original = error.config;
+    const originalRequest = error.config;
 
-    // Token expired
-    if (error.response?.status === 401 && !original._retry) {
-      original._retry = true;
+    // Detect expired access token
+    if (error.response?.status === 401 && !originalRequest._retry) {
+      originalRequest._retry = true;
 
       const refresh = localStorage.getItem(REFRESH_TOKEN);
       if (!refresh) {
+        localStorage.removeItem(ACCESS_TOKEN);
+        localStorage.removeItem(REFRESH_TOKEN);
         window.location.href = "/login";
         return Promise.reject(error);
       }
 
       try {
-        const res = await axios.post(`${BASE_URL}token/refresh/`, { refresh });
-        localStorage.setItem(ACCESS_TOKEN, res.data.access);
+        // Try refreshing token
+        const { data } = await axios.post(`${BASE_URL}token/refresh/`, {
+          refresh,
+        });
 
-        // Re-attach new access token
-        original.headers.Authorization = `Bearer ${res.data.access}`;
-        return api(original);
+        localStorage.setItem(ACCESS_TOKEN, data.access);
+        api.defaults.headers.Authorization = `Bearer ${data.access}`;
+        originalRequest.headers.Authorization = `Bearer ${data.access}`;
+
+        // Retry the original request
+        return api(originalRequest);
       } catch (refreshError) {
-        // Refresh token invalid → force logout
+        // Refresh failed → logout user
         localStorage.removeItem(ACCESS_TOKEN);
         localStorage.removeItem(REFRESH_TOKEN);
         window.location.href = "/login";

@@ -18,7 +18,7 @@ function Layout({ children }) {
 
       {/* Add the Chat Widget here */}
       <ChatWidget />
-      <PeerChatWidget />
+      {/* <PeerChatWidget /> */}
     </div>
   );
 }

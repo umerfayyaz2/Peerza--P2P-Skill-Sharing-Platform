@@ -1,0 +1,2734 @@
+========================================
+FILE: C:\D Drive Files\BSIT-B-F23\5th Semester\Advanced Web (Python Based)\Semester Project\Peerza_project\peerza_frontend\eslint.config.js
+========================================
+import js from '@eslint/js'
+import globals from 'globals'
+import reactHooks from 'eslint-plugin-react-hooks'
+import reactRefresh from 'eslint-plugin-react-refresh'
+import { defineConfig, globalIgnores } from 'eslint/config'
+
+export default defineConfig([
+  globalIgnores(['dist']),
+  {
+    files: ['**/*.{js,jsx}'],
+    extends: [
+      js.configs.recommended,
+      reactHooks.configs.flat.recommended,
+      reactRefresh.configs.vite,
+    ],
+    languageOptions: {
+      ecmaVersion: 2020,
+      globals: globals.browser,
+      parserOptions: {
+        ecmaVersion: 'latest',
+        ecmaFeatures: { jsx: true },
+        sourceType: 'module',
+      },
+    },
+    rules: {
+      'no-unused-vars': ['error', { varsIgnorePattern: '^[A-Z_]' }],
+    },
+  },
+])
+
+
+
+========================================
+FILE: C:\D Drive Files\BSIT-B-F23\5th Semester\Advanced Web (Python Based)\Semester Project\Peerza_project\peerza_frontend\index.html
+========================================
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>peerza_frontend</title>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.jsx"></script>
+  </body>
+</html>
+
+
+
+========================================
+FILE: C:\D Drive Files\BSIT-B-F23\5th Semester\Advanced Web (Python Based)\Semester Project\Peerza_project\peerza_frontend\postcss.config.js
+========================================
+export default {
+  plugins: {
+    tailwindcss: {},
+    autoprefixer: {},
+  },
+};
+
+
+
+========================================
+FILE: C:\D Drive Files\BSIT-B-F23\5th Semester\Advanced Web (Python Based)\Semester Project\Peerza_project\peerza_frontend\tailwind.config.js
+========================================
+/** @type {import('tailwindcss').Config} */
+export default {
+  content: [
+    "./index.html",
+    "./src/**/*.{js,ts,jsx,tsx}",
+  ],
+  theme: {
+    extend: {},
+  },
+  plugins: [],
+}
+
+
+
+========================================
+FILE: C:\D Drive Files\BSIT-B-F23\5th Semester\Advanced Web (Python Based)\Semester Project\Peerza_project\peerza_frontend\vite.config.js
+========================================
+import { defineConfig } from 'vite'
+import react from '@vitejs/plugin-react'
+
+// https://vite.dev/config/
+export default defineConfig({
+  plugins: [react()],
+})
+
+
+
+========================================
+FILE: C:\D Drive Files\BSIT-B-F23\5th Semester\Advanced Web (Python Based)\Semester Project\Peerza_project\peerza_frontend\src\api.js
+========================================
+import axios from "axios";
+
+const BASE_URL =
+  import.meta.env.VITE_API_BASE_URL || "http://127.0.0.1:8000/api/";
+
+export const ACCESS_TOKEN = "access_token";
+export const REFRESH_TOKEN = "refresh_token";
+
+const api = axios.create({
+  baseURL: BASE_URL,
+});
+
+// ---- Attach token to every request ----
+api.interceptors.request.use((config) => {
+  const token = localStorage.getItem(ACCESS_TOKEN);
+  if (token) config.headers.Authorization = `Bearer ${token}`;
+  return config;
+});
+
+// ---- Handle token expiration & refresh automatically ----
+api.interceptors.response.use(
+  (response) => response,
+  async (error) => {
+    const originalRequest = error.config;
+
+    // Detect expired access token
+    if (error.response?.status === 401 && !originalRequest._retry) {
+      originalRequest._retry = true;
+
+      const refresh = localStorage.getItem(REFRESH_TOKEN);
+      if (!refresh) {
+        localStorage.removeItem(ACCESS_TOKEN);
+        localStorage.removeItem(REFRESH_TOKEN);
+        window.location.href = "/login";
+        return Promise.reject(error);
+      }
+
+      try {
+        // Try refreshing token
+        const { data } = await axios.post(`${BASE_URL}token/refresh/`, {
+          refresh,
+        });
+
+        localStorage.setItem(ACCESS_TOKEN, data.access);
+        api.defaults.headers.Authorization = `Bearer ${data.access}`;
+        originalRequest.headers.Authorization = `Bearer ${data.access}`;
+
+        // Retry the original request
+        return api(originalRequest);
+      } catch (refreshError) {
+        // Refresh failed → logout user
+        localStorage.removeItem(ACCESS_TOKEN);
+        localStorage.removeItem(REFRESH_TOKEN);
+        window.location.href = "/login";
+        return Promise.reject(refreshError);
+      }
+    }
+
+    return Promise.reject(error);
+  }
+);
+
+export default api;
+
+
+
+========================================
+FILE: C:\D Drive Files\BSIT-B-F23\5th Semester\Advanced Web (Python Based)\Semester Project\Peerza_project\peerza_frontend\src\App.css
+========================================
+#root {
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 2rem;
+  text-align: center;
+}
+
+.logo {
+  height: 6em;
+  padding: 1.5em;
+  will-change: filter;
+  transition: filter 300ms;
+}
+.logo:hover {
+  filter: drop-shadow(0 0 2em #646cffaa);
+}
+.logo.react:hover {
+  filter: drop-shadow(0 0 2em #61dafbaa);
+}
+
+@keyframes logo-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  a:nth-of-type(2) .logo {
+    animation: logo-spin infinite 20s linear;
+  }
+}
+
+.card {
+  padding: 2em;
+}
+
+.read-the-docs {
+  color: #888;
+}
+
+/* === Notification bell wiggle/glow === */
+@keyframes peerza-bell-wiggle {
+  0%,
+  100% {
+    transform: rotate(0deg);
+  }
+  25% {
+    transform: rotate(-15deg);
+  }
+  75% {
+    transform: rotate(15deg);
+  }
+}
+.bell-animate {
+  animation: peerza-bell-wiggle 0.5s ease-in-out;
+  color: #fbbf24; /* amber glow */
+}
+
+
+
+========================================
+FILE: C:\D Drive Files\BSIT-B-F23\5th Semester\Advanced Web (Python Based)\Semester Project\Peerza_project\peerza_frontend\src\App.jsx
+========================================
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import Login from "./pages/Login";
+import Register from "./pages/Register";
+import Home from "./pages/Home";
+import Classroom from "./pages/Classroom";
+import Layout from "./components/Layout";
+import Settings from "./pages/Settings";
+import Landing from "./pages/Landing";
+import ProtectedRoute from "./components/ProtectedRoute";
+import PeerProfile from "./pages/PeerProfile";
+
+// --- NEW IMPORTS ---
+import GetPro from "./pages/GetPro";
+import About from "./pages/About";
+import Privacy from "./pages/Privacy";
+import Terms from "./pages/Terms";
+import Friends from "./pages/Friends";
+
+function Logout() {
+  localStorage.clear();
+  return <Navigate to="/login" />;
+}
+
+function RegisterAndLogout() {
+  localStorage.clear();
+  return <Register />;
+}
+
+function App() {
+  return (
+    <BrowserRouter>
+      <Routes>
+        {/* 1. PUBLIC LANDING PAGE (Root) */}
+        <Route path="/" element={<Landing />} />
+
+        {/* 2. PROTECTED DASHBOARD */}
+        <Route
+          path="/dashboard"
+          element={
+            <ProtectedRoute>
+              <Layout>
+                <Home />
+              </Layout>
+            </ProtectedRoute>
+          }
+        />
+
+        {/* Settings Page */}
+        <Route
+          path="/settings"
+          element={
+            <ProtectedRoute>
+              <Layout>
+                <Settings />
+              </Layout>
+            </ProtectedRoute>
+          }
+        />
+
+        {/* Peer Profile Page */}
+        <Route
+          path="/peer/:id"
+          element={
+            <ProtectedRoute>
+              <Layout>
+                <PeerProfile />
+              </Layout>
+            </ProtectedRoute>
+          }
+        />
+
+        {/* --- NEW PAGES (Wrapped in Layout) --- */}
+        <Route
+          path="/pro"
+          element={
+            <ProtectedRoute>
+              <Layout>
+                <GetPro />
+              </Layout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/about"
+          element={
+            <Layout>
+              <About />
+            </Layout>
+          }
+        />
+        <Route
+          path="/privacy"
+          element={
+            <Layout>
+              <Privacy />
+            </Layout>
+          }
+        />
+        <Route
+          path="/terms"
+          element={
+            <Layout>
+              <Terms />
+            </Layout>
+          }
+        />
+
+        {/* Video Classroom */}
+        <Route
+          path="/room/:peerId"
+          element={
+            <ProtectedRoute>
+              <Classroom />
+            </ProtectedRoute>
+          }
+        />
+
+        {/* Public Routes */}
+        <Route path="/login" element={<Login />} />
+        <Route path="/logout" element={<Logout />} />
+        <Route path="/register" element={<RegisterAndLogout />} />
+        <Route path="/friends" element={<Friends />} />
+
+        {/* Fallback */}
+        <Route path="*" element={<Navigate to="/" />} />
+      </Routes>
+    </BrowserRouter>
+  );
+}
+
+export default App;
+
+
+
+========================================
+FILE: C:\D Drive Files\BSIT-B-F23\5th Semester\Advanced Web (Python Based)\Semester Project\Peerza_project\peerza_frontend\src\constants.js
+========================================
+export const ACCESS_TOKEN = "access";
+export const REFRESH_TOKEN = "refresh";
+
+
+
+========================================
+FILE: C:\D Drive Files\BSIT-B-F23\5th Semester\Advanced Web (Python Based)\Semester Project\Peerza_project\peerza_frontend\src\firebaseConfig.js
+========================================
+// src/firebaseConfig.js
+import { initializeApp } from "firebase/app";
+import {
+  getDatabase,
+  ref as dbRef,
+  set as dbSet,
+  onDisconnect as dbOnDisconnect,
+} from "firebase/database";
+import {
+  getAuth,
+  signInAnonymously as firebaseSignInAnonymously,
+} from "firebase/auth";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyA8fIOTMvJKzZjY2D-SRTQL982stfNCESc",
+  authDomain: "peerza-chat.firebaseapp.com",
+  databaseURL: "https://peerza-chat-default-rtdb.firebaseio.com",
+  projectId: "peerza-chat",
+  storageBucket: "peerza-chat.firebasestorage.app",
+  messagingSenderId: "1012558457708",
+  appId: "1:1012558457708:web:8e347aec0349d4ea14a149",
+};
+
+// Initialize Firebase app
+const app = initializeApp(firebaseConfig);
+
+// Realtime DB + Auth
+const database = getDatabase(app);
+const auth = getAuth(app);
+
+// Re-export the DB helper functions
+export {
+  app,
+  database,
+  auth,
+  firebaseSignInAnonymously as signInAnonymously,
+  dbRef as ref,
+  dbSet as set,
+  dbOnDisconnect as onDisconnect,
+};
+
+
+
+========================================
+FILE: C:\D Drive Files\BSIT-B-F23\5th Semester\Advanced Web (Python Based)\Semester Project\Peerza_project\peerza_frontend\src\index.css
+========================================
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+
+
+========================================
+FILE: C:\D Drive Files\BSIT-B-F23\5th Semester\Advanced Web (Python Based)\Semester Project\Peerza_project\peerza_frontend\src\main.jsx
+========================================
+import { StrictMode } from 'react'
+import { createRoot } from 'react-dom/client'
+import './index.css'
+import App from './App.jsx'
+
+createRoot(document.getElementById('root')).render(
+  <StrictMode>
+    <App />
+  </StrictMode>,
+)
+
+
+
+========================================
+FILE: C:\D Drive Files\BSIT-B-F23\5th Semester\Advanced Web (Python Based)\Semester Project\Peerza_project\peerza_frontend\src\components\ChatWidget.jsx
+========================================
+import { useState, useEffect, useRef } from "react";
+import { database } from "../firebaseConfig";
+import { ref, push, onValue, serverTimestamp } from "firebase/database";
+import api from "../api";
+import { MessageCircle, X, Send, User } from "lucide-react";
+
+function ChatWidget() {
+  const [isOpen, setIsOpen] = useState(false);
+  const [messages, setMessages] = useState([]);
+  const [newMessage, setNewMessage] = useState("");
+  const [username, setUsername] = useState("Guest");
+  const messagesEndRef = useRef(null);
+
+  // 1. Get Current User Info from Django
+  useEffect(() => {
+    if (isOpen) {
+      api
+        .get("profile/")
+        .then((res) => setUsername(res.data.username))
+        .catch((err) => console.error("Error fetching profile:", err));
+    }
+  }, [isOpen]);
+
+  // 2. Listen for Messages (Real-time!)
+  useEffect(() => {
+    if (!isOpen) return;
+
+    // For MVP Test: We connect everyone to a "global" room first
+    const chatRef = ref(database, "community_chat");
+
+    const unsubscribe = onValue(chatRef, (snapshot) => {
+      const data = snapshot.val();
+      const loadedMessages = [];
+      if (data) {
+        for (const key in data) {
+          loadedMessages.push({ id: key, ...data[key] });
+        }
+        setMessages(loadedMessages);
+      }
+    });
+
+    return () => unsubscribe();
+  }, [isOpen]);
+
+  // Auto-scroll to bottom when new message arrives
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages]);
+
+  // 3. Send Message
+  const sendMessage = (e) => {
+    e.preventDefault();
+    if (!newMessage.trim()) return;
+
+    const chatRef = ref(database, "community_chat");
+    push(chatRef, {
+      user: username,
+      text: newMessage,
+      createdAt: serverTimestamp(),
+    });
+
+    setNewMessage("");
+  };
+
+  // --- RENDER ---
+
+  // 1. Closed State (The Floating Button)
+  if (!isOpen) {
+    return (
+      <button
+        onClick={() => setIsOpen(true)}
+        className="fixed bottom-6 right-6 bg-indigo-600 hover:bg-indigo-700 text-white p-4 rounded-full shadow-2xl transition-transform hover:scale-110 z-50 flex items-center gap-2"
+      >
+        <MessageCircle size={28} />
+        <span className="font-bold hidden md:inline">Community Chat</span>
+      </button>
+    );
+  }
+
+  // 2. Open State (The Window)
+  return (
+    <div className="fixed bottom-4 right-4 w-80 md:w-96 h-[500px] bg-white rounded-xl shadow-2xl border border-gray-200 flex flex-col z-50 overflow-hidden font-sans animate-fade-in-up">
+      {/* Header */}
+      <div className="bg-indigo-600 p-4 flex justify-between items-center text-white shadow-md">
+        <div className="flex items-center gap-2">
+          <div className="bg-white/20 p-1.5 rounded-full">
+            <User size={18} />
+          </div>
+          <div>
+            <h3 className="font-bold text-sm">Peerza Community</h3>
+            <div className="flex items-center gap-1">
+              <span className="w-2 h-2 bg-green-400 rounded-full"></span>
+              <span className="text-xs text-indigo-100">Live</span>
+            </div>
+          </div>
+        </div>
+        <button
+          onClick={() => setIsOpen(false)}
+          className="text-indigo-100 hover:text-white hover:bg-white/10 rounded-full p-1 transition"
+        >
+          <X size={20} />
+        </button>
+      </div>
+
+      {/* Messages Area */}
+      <div className="flex-1 p-4 overflow-y-auto bg-slate-50">
+        {messages.length === 0 && (
+          <div className="text-center text-gray-400 mt-10 text-sm">
+            <p>No messages yet.</p>
+            <p>Say hello! 👋</p>
+          </div>
+        )}
+
+        {messages.map((msg) => (
+          <div
+            key={msg.id}
+            className={`mb-3 flex ${
+              msg.user === username ? "justify-end" : "justify-start"
+            }`}
+          >
+            <div
+              className={`max-w-[80%] rounded-2xl px-4 py-2 text-sm shadow-sm ${
+                msg.user === username
+                  ? "bg-indigo-600 text-white rounded-br-none"
+                  : "bg-white text-gray-800 border border-gray-200 rounded-bl-none"
+              }`}
+            >
+              {msg.user !== username && (
+                <p className="text-xs font-bold text-indigo-600 mb-1">
+                  {msg.user}
+                </p>
+              )}
+              <p>{msg.text}</p>
+            </div>
+          </div>
+        ))}
+        <div ref={messagesEndRef} />
+      </div>
+
+      {/* Input Area */}
+      <form
+        onSubmit={sendMessage}
+        className="p-3 bg-white border-t border-gray-100 flex gap-2 items-center"
+      >
+        <input
+          type="text"
+          value={newMessage}
+          onChange={(e) => setNewMessage(e.target.value)}
+          placeholder="Type a message..."
+          className="flex-1 bg-gray-100 border-0 text-gray-800 text-sm rounded-full px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all"
+        />
+        <button
+          type="submit"
+          className="bg-indigo-600 text-white p-2.5 rounded-full hover:bg-indigo-700 transition shadow-md disabled:opacity-50"
+          disabled={!newMessage.trim()}
+        >
+          <Send size={18} />
+        </button>
+      </form>
+    </div>
+  );
+}
+
+export default ChatWidget;
+
+
+
+========================================
+FILE: C:\D Drive Files\BSIT-B-F23\5th Semester\Advanced Web (Python Based)\Semester Project\Peerza_project\peerza_frontend\src\components\Footer.jsx
+========================================
+import { Link } from "react-router-dom";
+
+function Footer() {
+  return (
+    <footer className="bg-white border-t border-gray-200 mt-auto">
+      <div className="max-w-7xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
+        <div className="md:flex md:items-center md:justify-between">
+          <div className="flex justify-center md:justify-start space-x-6">
+            <Link
+              to="/about"
+              className="text-gray-400 hover:text-indigo-600 transition"
+            >
+              About
+            </Link>
+            <Link
+              to="/privacy"
+              className="text-gray-400 hover:text-indigo-600 transition"
+            >
+              Privacy
+            </Link>
+            <Link
+              to="/terms"
+              className="text-gray-400 hover:text-indigo-600 transition"
+            >
+              Terms
+            </Link>
+          </div>
+          <div className="mt-8 md:mt-0">
+            <p className="text-center text-base leading-6 text-gray-400">
+              &copy; 2025 Peerza Project. Built by Umer.
+            </p>
+          </div>
+        </div>
+      </div>
+    </footer>
+  );
+}
+
+export default Footer;
+
+
+
+========================================
+FILE: C:\D Drive Files\BSIT-B-F23\5th Semester\Advanced Web (Python Based)\Semester Project\Peerza_project\peerza_frontend\src\components\Form.jsx
+========================================
+import { useState } from "react";
+import api from "../api";
+import { useNavigate } from "react-router-dom";
+import { ACCESS_TOKEN, REFRESH_TOKEN } from "../constants";
+
+// ✅ IMPORTS THAT MATCH firebaseConfig.js EXACTLY
+import {
+  auth,
+  database,
+  signInAnonymously,
+  ref,
+  set,
+  onDisconnect,
+} from "../firebaseConfig";
+
+function Form({ route, method }) {
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [email, setEmail] = useState("");
+
+  const navigate = useNavigate();
+  const name = method === "login" ? "Login" : "Register";
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+
+    try {
+      // -----------------------------------------
+      // STEP 1: Django Authentication (Login/Register)
+      // -----------------------------------------
+      const payload =
+        method === "register"
+          ? { username, email, password }
+          : { username, password };
+
+      const res = await api.post(route, payload);
+
+      if (method === "login") {
+        console.log("✅ Django response data:", res.data);
+        const access = res.data.access;
+        const refresh = res.data.refresh;
+
+        // Save JWT tokens
+        localStorage.setItem(ACCESS_TOKEN, access);
+        localStorage.setItem(REFRESH_TOKEN, refresh);
+
+        // Ensure future requests include Authorization header
+        api.defaults.headers.common["Authorization"] = `Bearer ${access}`;
+
+        // -----------------------------------------
+        // STEP 2: Firebase Anonymous Login
+        // -----------------------------------------
+        const firebaseRes = await signInAnonymously(auth);
+        const firebaseUid = firebaseRes.user.uid;
+        console.log("🔥 Firebase UID:", firebaseUid);
+
+        // -----------------------------------------
+        // STEP 3: Send Firebase UID → Django Backend
+        // -----------------------------------------
+        await api.post("firebase/register-uid/", {
+          firebase_uid: firebaseUid,
+        });
+
+        console.log("🔥 Firebase UID registered in Django backend");
+
+        // -----------------------------------------
+        // STEP 4: Presence System (Realtime Database)
+        // -----------------------------------------
+        const presenceRef = ref(database, `presence/${firebaseUid}`);
+
+        // Mark user online
+        await set(presenceRef, {
+          online: true,
+          last_active: new Date().toISOString(),
+        });
+
+        // Automatically set offline when disconnected
+        onDisconnect(presenceRef).set({
+          online: false,
+          last_active: new Date().toISOString(),
+        });
+
+        console.log("🔥 Presence system activated");
+
+        // -----------------------------------------
+        // STEP 5: Redirect to dashboard
+        // -----------------------------------------
+        navigate("/dashboard");
+      } else {
+        // Registration success → redirect to login page
+        navigate("/login");
+      }
+    } catch (error) {
+      // -----------------------------------------
+      // ERROR HANDLING
+      // -----------------------------------------
+      console.error("❌ Login/Register Error:", error);
+
+      if (error.response) {
+        console.error("Backend response:", error.response.data);
+
+        if (method === "register") {
+          alert(
+            `Registration failed: ${
+              error.response?.data?.email ||
+              error.response?.data?.username ||
+              error.response?.data?.detail ||
+              "Please try again."
+            }`
+          );
+        } else {
+          alert(
+            `Login failed: ${
+              error.response?.data?.detail || "Invalid credentials"
+            }`
+          );
+        }
+      } else {
+        alert(
+          method === "register"
+            ? "Registration failed. Please check your connection."
+            : "Login failed. Please check your connection."
+        );
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // -----------------------------------------
+  // RETURN UI
+  // -----------------------------------------
+  return (
+    <form
+      onSubmit={handleSubmit}
+      className="container mx-auto max-w-sm bg-white p-8 rounded-lg shadow-lg mt-20"
+    >
+      <h1 className="text-3xl font-bold text-indigo-600 mb-6 text-center">
+        {name}
+      </h1>
+
+      <input
+        className="w-full p-3 mb-4 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-indigo-500"
+        type="text"
+        value={username}
+        onChange={(e) => setUsername(e.target.value)}
+        placeholder="Username"
+        required
+      />
+
+      {method === "register" && (
+        <input
+          className="w-full p-3 mb-4 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-indigo-500"
+          type="email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          placeholder="Email"
+          required
+        />
+      )}
+
+      <input
+        className="w-full p-3 mb-6 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-indigo-500"
+        type="password"
+        value={password}
+        onChange={(e) => setPassword(e.target.value)}
+        placeholder="Password"
+        required
+      />
+
+      <button
+        type="submit"
+        disabled={loading}
+        className="w-full bg-indigo-600 text-white p-3 rounded hover:bg-indigo-700 transition duration-200 font-bold"
+      >
+        {loading ? "Processing…" : name}
+      </button>
+    </form>
+  );
+}
+
+export default Form;
+
+
+
+========================================
+FILE: C:\D Drive Files\BSIT-B-F23\5th Semester\Advanced Web (Python Based)\Semester Project\Peerza_project\peerza_frontend\src\components\Layout.jsx
+========================================
+import Navbar from "./Navbar";
+import Footer from "./Footer";
+import ChatWidget from "./ChatWidget"; // <--- Import from firebase
+import PeerChatWidget from "./PeerChatWidget"; // new Django chat
+
+function Layout({ children }) {
+  return (
+    // 👇 CHANGE THE CLASS BELOW TO SWITCH THEMES 👇
+    <div className="min-h-screen flex flex-col bg-slate-100">
+      <Navbar />
+
+      {/* The main content area */}
+      <main className="flex-grow pt-20 pb-10 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto w-full">
+        {children}
+      </main>
+
+      <Footer />
+
+      {/* Add the Chat Widget here */}
+      <ChatWidget />
+      {/* <PeerChatWidget /> */}
+    </div>
+  );
+}
+
+export default Layout;
+
+
+
+========================================
+FILE: C:\D Drive Files\BSIT-B-F23\5th Semester\Advanced Web (Python Based)\Semester Project\Peerza_project\peerza_frontend\src\components\Navbar.jsx
+========================================
+import { Link, useLocation } from "react-router-dom";
+import NotificationsBell from "./NotificationsBell"; // ✅ Added import
+
+function Navbar() {
+  const location = useLocation();
+  const isActive = (path) => location.pathname === path;
+
+  return (
+    // ✅ Updated: made navbar sticky + higher z-index for overlay consistency
+    <nav className="sticky top-0 z-[1100] bg-white border-b border-gray-200 w-full shadow-sm">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="flex justify-between h-16">
+          <div className="flex items-center">
+            <Link to="/dashboard" className="flex-shrink-0 flex items-center">
+              <span className="text-2xl font-bold text-indigo-600 tracking-tighter">
+                Peerza<span className="text-yellow-500">.</span>
+              </span>
+            </Link>
+          </div>
+
+          {/* ✅ Right-side controls updated */}
+          <div className="ml-auto flex items-center gap-3">
+            <Link
+              to="/dashboard"
+              className={`px-3 py-2 rounded-md text-sm font-medium transition duration-150 ease-in-out ${
+                isActive("/dashboard")
+                  ? "bg-indigo-50 text-indigo-700 shadow-inner"
+                  : "text-gray-500 hover:text-indigo-600 hover:bg-gray-50"
+              }`}
+            >
+              Dashboard
+            </Link>
+
+            <Link
+              to="/settings"
+              className={`px-3 py-2 rounded-md text-sm font-medium transition duration-150 ease-in-out ${
+                isActive("/settings")
+                  ? "bg-indigo-50 text-indigo-700 shadow-inner"
+                  : "text-gray-500 hover:text-indigo-600 hover:bg-gray-50"
+              }`}
+            >
+              Settings
+            </Link>
+
+            {/* --- NEW GET PRO BUTTON --- */}
+            <Link
+              to="/pro"
+              className="hidden md:block bg-gradient-to-r from-yellow-400 to-orange-500 text-white px-4 py-2 rounded-lg text-sm font-bold hover:shadow-lg transform hover:-translate-y-0.5 transition"
+            >
+              Get Pro 👑
+            </Link>
+
+            {/* ✅ Notification Bell inserted here */}
+            <NotificationsBell />
+
+            <div className="h-6 w-px bg-gray-300 mx-2"></div>
+
+            <Link
+              to="/logout"
+              className="bg-red-50 text-red-600 hover:bg-red-100 border border-red-100 px-4 py-2 rounded-lg font-medium transition duration-200"
+            >
+              Logout
+            </Link>
+          </div>
+        </div>
+      </div>
+    </nav>
+  );
+}
+
+export default Navbar;
+
+
+
+========================================
+FILE: C:\D Drive Files\BSIT-B-F23\5th Semester\Advanced Web (Python Based)\Semester Project\Peerza_project\peerza_frontend\src\components\NotificationsBell.jsx
+========================================
+import { useEffect, useState, useRef, useCallback } from "react";
+import api from "../api";
+
+export default function NotificationsBell() {
+  const [count, setCount] = useState(0);
+  const [items, setItems] = useState([]);
+  const [open, setOpen] = useState(false);
+  const [wiggle, setWiggle] = useState(false);
+  const dropdownRef = useRef(null);
+  const prevCount = useRef(0);
+
+  // --- Load notifications ---
+  const load = useCallback(async () => {
+    try {
+      const res = await api.get("notifications/");
+      const data = Array.isArray(res.data) ? res.data : [];
+
+      // Trigger wiggle when new notifications appear
+      if (data.length > prevCount.current) {
+        setWiggle(true);
+        setTimeout(() => setWiggle(false), 800);
+      }
+      prevCount.current = data.length;
+
+      setItems(data);
+      setCount(data.length);
+    } catch (err) {
+      console.error("Error loading notifications:", err);
+    }
+  }, []);
+
+  // --- Safe polling loop ---
+  useEffect(() => {
+    let isMounted = true;
+
+    const fetchData = async () => {
+      if (isMounted) await load();
+    };
+
+    fetchData(); // Initial load
+    const t = setInterval(fetchData, 8000); // Refresh every 8s
+
+    return () => {
+      isMounted = false;
+      clearInterval(t);
+    };
+  }, [load]);
+
+  // --- Close dropdown when clicking outside ---
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
+        setOpen(false);
+      }
+    };
+    document.addEventListener("click", handleClickOutside);
+    return () => document.removeEventListener("click", handleClickOutside);
+  }, []);
+
+  // --- Mark notification read ---
+  const markRead = async (id) => {
+    try {
+      await api.post(`notifications/mark-read/${id}/`);
+      setItems((prev) => prev.filter((n) => n.id !== id));
+      setCount((c) => Math.max(0, c - 1));
+    } catch (err) {
+      console.error("markRead failed:", err);
+    }
+  };
+
+  // --- Respond to friend request ---
+  const handleRespond = async (notif, action) => {
+    try {
+      const reqId = notif?.data?.request_id;
+      if (!reqId) {
+        console.warn("No request_id found in notification:", notif);
+        return;
+      }
+
+      const token = localStorage.getItem("access");
+      if (!token) {
+        alert("You are not authenticated");
+        return;
+      }
+
+      const res = await fetch(
+        `http://127.0.0.1:8000/api/friends/request/respond/${reqId}/`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({ action }),
+        }
+      );
+
+      if (!res.ok) {
+        const errorText = await res.text();
+        console.error("Respond failed:", errorText);
+        alert("Failed to respond to friend request.");
+        return;
+      }
+
+      // Mark as read after responding
+      await api.post(`notifications/mark-read/${notif.id}/`);
+
+      // Update state instantly
+      setItems((prev) => prev.filter((n) => n.id !== notif.id));
+      setCount((c) => Math.max(0, c - 1));
+
+      // Refresh notifications after a short delay
+      setTimeout(() => load(), 400);
+    } catch (err) {
+      console.error("Error in handleRespond:", err);
+    }
+  };
+
+  return (
+    <div className="relative" ref={dropdownRef}>
+      {/* Bell Button */}
+      <button
+        onClick={() => setOpen((prev) => !prev)}
+        className={`relative rounded-full p-2 hover:bg-gray-100 transition ${
+          wiggle ? "animate-[wiggle_0.8s_ease]" : ""
+        }`}
+        title="Notifications"
+      >
+        <span className="text-xl">🔔</span>
+        {count > 0 && (
+          <span className="absolute -top-1 -right-1 bg-red-600 text-white rounded-full text-[10px] w-5 h-5 flex items-center justify-center">
+            {count > 9 ? "9+" : count}
+          </span>
+        )}
+      </button>
+
+      {/* Dropdown */}
+      {open && (
+        <div className="absolute right-0 mt-2 w-80 bg-white shadow-xl border rounded-lg overflow-hidden z-[2000]">
+          <div className="p-3 border-b text-sm font-semibold bg-gray-50">
+            Notifications
+          </div>
+
+          <div className="max-h-72 overflow-y-auto">
+            {items.length === 0 && (
+              <p className="text-center text-gray-500 p-4 text-sm">
+                No notifications
+              </p>
+            )}
+
+            {items.map((n) => (
+              <div
+                key={n.id}
+                className="px-3 py-2 border-b text-sm hover:bg-gray-50 transition"
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex-1">
+                    <span className="font-medium">{n.actor?.username}</span>{" "}
+                    {n.type === "FRIEND_REQUEST" &&
+                      "sent you a friend request 💌"}
+                    {n.type === "FRIEND_ACCEPTED" &&
+                      "accepted your friend request ✅"}
+                    {n.type === "FRIEND_DECLINED" &&
+                      "declined your friend request ❌"}
+                  </div>
+
+                  {n.type !== "FRIEND_REQUEST" && (
+                    <button
+                      onClick={() => markRead(n.id)}
+                      className="text-xs text-indigo-600 hover:underline"
+                    >
+                      Mark read
+                    </button>
+                  )}
+                </div>
+
+                {n.type === "FRIEND_REQUEST" && (
+                  <div className="mt-2 flex gap-2">
+                    <button
+                      onClick={() => {
+                        console.log("ACCEPT clicked", n);
+                        handleRespond(n, "ACCEPT");
+                      }}
+                      className="px-3 py-1 rounded bg-emerald-600 text-white text-xs font-semibold hover:bg-emerald-700"
+                    >
+                      Accept
+                    </button>
+                    <button
+                      onClick={() => handleRespond(n, "DECLINE")}
+                      className="px-3 py-1 rounded bg-rose-600 text-white text-xs font-semibold hover:bg-rose-700"
+                    >
+                      Decline
+                    </button>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Wiggle Animation */}
+      <style>{`
+        @keyframes wiggle {
+          0%, 100% { transform: rotate(0deg); }
+          15% { transform: rotate(-12deg); }
+          30% { transform: rotate(12deg); }
+          45% { transform: rotate(-8deg); }
+          60% { transform: rotate(8deg); }
+          75% { transform: rotate(-4deg); }
+          90% { transform: rotate(4deg); }
+        }
+      `}</style>
+    </div>
+  );
+}
+
+
+
+========================================
+FILE: C:\D Drive Files\BSIT-B-F23\5th Semester\Advanced Web (Python Based)\Semester Project\Peerza_project\peerza_frontend\src\components\PeerChatWidget.jsx
+========================================
+import { useEffect, useState } from "react";
+import api from "../api";
+
+export default function PeerChatWidget() {
+  const [open, setOpen] = useState(false);
+  const [convos, setConvos] = useState([]);
+  const [activePeer, setActivePeer] = useState(null);
+  const [messages, setMessages] = useState([]);
+  const [draft, setDraft] = useState("");
+
+  // Poll conversations every 5 seconds
+  useEffect(() => {
+    let timer;
+
+    const load = async () => {
+      try {
+        const res = await api.get("chats/");
+        setConvos(res.data || []);
+      } catch (err) {
+        console.error("Failed to load conversations:", err);
+      } finally {
+        timer = setTimeout(load, 5000);
+      }
+    };
+
+    load();
+    return () => clearTimeout(timer);
+  }, []);
+
+  const openChat = async (peer) => {
+    setActivePeer(peer);
+    setOpen(true);
+    try {
+      const res = await api.get(`chats/${peer.id}/messages/`);
+      setMessages(res.data || []);
+      await api.post(`chats/${peer.id}/read/`);
+      const conv = await api.get("chats/");
+      setConvos(conv.data || []);
+    } catch (e) {
+      console.error("load chat failed", e);
+    }
+  };
+
+  const sendMessage = async () => {
+    const text = draft.trim();
+    if (!text || !activePeer) return;
+    setDraft("");
+    try {
+      const res = await api.post(`chats/${activePeer.id}/send/`, {
+        content: text,
+      });
+      setMessages((prev) => [...prev, res.data]);
+    } catch (e) {
+      console.error("send failed", e);
+    }
+  };
+
+  const totalUnread = convos.reduce((s, c) => s + (c.unread_count || 0), 0);
+
+  return (
+    <>
+      {/* Floating button */}
+      <button
+        onClick={() => setOpen((x) => !x)}
+        className="fixed bottom-24 right-5 rounded-full bg-pink-600 text-white w-14 h-14 flex items-center justify-center text-2xl shadow-lg z-[1000]"
+      >
+        💌
+        {totalUnread > 0 && (
+          <span className="absolute -top-1 -right-1 bg-red-600 text-white rounded-full text-xs w-5 h-5 flex items-center justify-center">
+            {totalUnread > 9 ? "9+" : totalUnread}
+          </span>
+        )}
+      </button>
+
+      {/* Drawer (anchored below navbar) */}
+      {open && (
+        <div
+          className="fixed right-5 w-[320px] bg-white rounded-2xl shadow-2xl border overflow-hidden z-[1000]"
+          style={{ top: 88 }} // Adjust based on navbar height
+        >
+          <div className="flex h-96">
+            {/* Conversation list */}
+            <div className="w-36 border-r overflow-y-auto">
+              {convos.length === 0 && (
+                <div className="p-4 text-xs text-gray-400">No chats yet</div>
+              )}
+              {convos.map(({ peer, unread_count }) => (
+                <button
+                  key={peer.id}
+                  onClick={() => openChat(peer)}
+                  className="w-full flex items-center justify-between px-3 py-2 hover:bg-gray-50 text-sm"
+                >
+                  <span>{peer.username}</span>
+                  {unread_count > 0 && (
+                    <span className="bg-red-500 text-white rounded-full text-[10px] w-5 h-5 flex items-center justify-center">
+                      {unread_count}
+                    </span>
+                  )}
+                </button>
+              ))}
+            </div>
+
+            {/* Messages */}
+            <div className="flex-1 flex flex-col">
+              <div className="px-3 py-2 border-b text-sm font-bold bg-gray-50">
+                {activePeer ? activePeer.username : "Chat"}
+              </div>
+
+              <div className="flex-1 overflow-y-auto p-3 space-y-2">
+                {messages.map((m) => (
+                  <div
+                    key={m.id}
+                    className={`max-w-[80%] px-3 py-2 rounded-lg text-sm ${
+                      m.sender?.id === activePeer?.id
+                        ? "bg-gray-200 text-gray-800 self-start"
+                        : "bg-pink-600 text-white self-end ml-auto"
+                    }`}
+                  >
+                    {m.content}
+                  </div>
+                ))}
+                {messages.length === 0 && (
+                  <div className="text-xs text-gray-400">No messages yet</div>
+                )}
+              </div>
+
+              <div className="p-2 border-t flex gap-2">
+                <input
+                  value={draft}
+                  onChange={(e) => setDraft(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && sendMessage()}
+                  placeholder="Type..."
+                  className="flex-1 border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-pink-400 outline-none"
+                />
+                <button
+                  onClick={sendMessage}
+                  className="bg-pink-600 text-white px-3 py-2 rounded-lg text-sm font-bold"
+                >
+                  Send
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
+  );
+}
+
+
+
+========================================
+FILE: C:\D Drive Files\BSIT-B-F23\5th Semester\Advanced Web (Python Based)\Semester Project\Peerza_project\peerza_frontend\src\components\ProtectedRoute.jsx
+========================================
+import { Navigate } from "react-router-dom";
+import { jwtDecode } from "jwt-decode";
+import api from "../api";
+import { REFRESH_TOKEN, ACCESS_TOKEN } from "../constants";
+import { useState, useEffect } from "react";
+
+function ProtectedRoute({ children }) {
+  const [isAuthorized, setIsAuthorized] = useState(null);
+
+  useEffect(() => {
+    // 1. We define the logic INSIDE the effect to satisfy the Linter
+    const refreshToken = async () => {
+      const refreshToken = localStorage.getItem(REFRESH_TOKEN);
+      try {
+        const res = await api.post("/token/refresh/", {
+          refresh: refreshToken,
+        });
+        if (res.status === 200) {
+          localStorage.setItem(ACCESS_TOKEN, res.data.access);
+          setIsAuthorized(true);
+        } else {
+          setIsAuthorized(false);
+        }
+      } catch (error) {
+        console.log(error);
+        setIsAuthorized(false);
+      }
+    };
+
+    const auth = async () => {
+      const token = localStorage.getItem(ACCESS_TOKEN);
+      if (!token) {
+        setIsAuthorized(false);
+        return;
+      }
+      const decoded = jwtDecode(token);
+      const tokenExpiration = decoded.exp;
+      const now = Date.now() / 1000;
+
+      if (tokenExpiration < now) {
+        await refreshToken();
+      } else {
+        setIsAuthorized(true);
+      }
+    };
+
+    // 2. Run it immediately
+    auth().catch(() => setIsAuthorized(false));
+  }, []);
+
+  if (isAuthorized === null) {
+    return <div>Loading...</div>;
+  }
+
+  return isAuthorized ? children : <Navigate to="/login" />;
+}
+
+export default ProtectedRoute;
+
+
+
+========================================
+FILE: C:\D Drive Files\BSIT-B-F23\5th Semester\Advanced Web (Python Based)\Semester Project\Peerza_project\peerza_frontend\src\components\utils\chat\CalendarModal.jsx
+========================================
+// src/components/chat/CalendarModal.jsx
+import { useState } from "react";
+import DatePicker from "react-datepicker";
+import "react-datepicker/dist/react-datepicker.css";
+import { submitMeeting } from "../../utils/chat"; // adjust path if needed
+import useChat from "../../context/useChat";
+
+function CalendarModal({ isOpen, onClose, guest }) {
+  const { djangoUser } = useChat(); // current user
+  const [startDate, setStartDate] = useState(null);
+  const [endDate, setEndDate] = useState(null);
+  const [topic, setTopic] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  if (!isOpen) return null;
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!startDate || !topic) {
+      alert("Pick a start date and topic");
+      return;
+    }
+    setLoading(true);
+    try {
+      const startISO = startDate.toISOString();
+      const endISO = endDate ? endDate.toISOString() : null;
+      // host = current user
+      await submitMeeting(djangoUser.id, guest.id, startISO, endISO, topic);
+      alert("Meeting requested — a system message was posted into the chat.");
+      onClose();
+    } catch (err) {
+      console.error(err);
+      alert("Could not create meeting. Check console.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+      <div className="bg-white rounded-lg p-6 max-w-md w-full shadow-xl">
+        <h3 className="text-lg font-bold mb-2">
+          Schedule Meeting with {guest.username}
+        </h3>
+
+        <form onSubmit={handleSubmit} className="space-y-3">
+          <div>
+            <label className="block text-sm font-medium mb-1">Topic</label>
+            <input
+              required
+              value={topic}
+              onChange={(e) => setTopic(e.target.value)}
+              className="w-full border px-3 py-2 rounded"
+              placeholder="Eg. Python tutoring"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium mb-1">Start</label>
+            <DatePicker
+              selected={startDate}
+              onChange={(date) => setStartDate(date)}
+              showTimeSelect
+              timeIntervals={15}
+              dateFormat="Pp"
+              className="w-full border px-3 py-2 rounded"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium mb-1">
+              End (optional)
+            </label>
+            <DatePicker
+              selected={endDate}
+              onChange={(date) => setEndDate(date)}
+              showTimeSelect
+              timeIntervals={15}
+              dateFormat="Pp"
+              className="w-full border px-3 py-2 rounded"
+              minDate={startDate}
+            />
+          </div>
+
+          <div className="flex gap-2 justify-end pt-2">
+            <button
+              type="button"
+              onClick={onClose}
+              className="px-4 py-2 rounded border"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              className="px-4 py-2 rounded bg-indigo-600 text-white"
+              disabled={loading}
+            >
+              {loading ? "Requesting..." : "Request Meeting"}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+export default CalendarModal;
+
+
+
+========================================
+FILE: C:\D Drive Files\BSIT-B-F23\5th Semester\Advanced Web (Python Based)\Semester Project\Peerza_project\peerza_frontend\src\components\utils\chat\chat.js
+========================================
+// ======================================================
+// 🔥 Utility: Generate a deterministic 1–on–1 Room ID
+// ======================================================
+export function roomIdForPair(aId, bId) {
+  const a = Number(aId);
+  const b = Number(bId);
+
+  const [minId, maxId] = a < b ? [a, b] : [b, a];
+
+  return `chat_${minId}_${maxId}`;
+}
+
+// ======================================================
+// 🔥 Post system messages to a chat room
+// Used for meeting requests, accept/decline notifications
+// ======================================================
+import { db } from "../../firebaseConfig";
+import { ref, push, set } from "firebase/database";
+
+/**
+ * Pushes a system message into a Firebase chat room.
+ * System messages are displayed in chat but not attributed to any user.
+ */
+export async function postSystemMessageToRoom(roomId, messageText) {
+  const sysRef = push(ref(db, `chats/${roomId}/messages`));
+
+  await set(sysRef, {
+    system: true,
+    text: messageText,
+    created_at: Date.now(),
+  });
+}
+
+// ======================================================
+// 🔥 Submit a meeting → integrate with chat automatically
+// ======================================================
+import api from "../../api";
+
+/**
+ * Creates a meeting via Django API
+ * and posts a system-notification message in the chat.
+ */
+export async function submitMeeting(guestId, startDateISO, endDateISO, topic) {
+  // A) Call Django backend to create the meeting
+  const response = await api.post("/meetings/request/", {
+    guest_id: guestId,
+    start_datetime: startDateISO,
+    end_datetime: endDateISO,
+    topic: topic,
+  });
+
+  const meeting = response.data;
+
+  // B) Generate chat room ID
+  const roomId = roomIdForPair(meeting.host.id, meeting.guest.id);
+
+  // C) Post a system message in the chat room
+  await postSystemMessageToRoom(
+    roomId,
+    `📅 Meeting requested: "${topic}" on ${startDateISO}`
+  );
+
+  return meeting;
+}
+
+
+
+========================================
+FILE: C:\D Drive Files\BSIT-B-F23\5th Semester\Advanced Web (Python Based)\Semester Project\Peerza_project\peerza_frontend\src\components\utils\chat\ChatList.jsx
+========================================
+import { useState, useEffect } from "react";
+import { useChat } from "../../context/ChatContext";
+import { database } from "../../firebaseConfig";
+import { ref, onValue } from "firebase/database";
+import api from "../../api";
+import { X, User } from "lucide-react";
+
+function ChatList() {
+  const { toggleChat, openChatWith } = useChat();
+  const [recentPeers, setRecentPeers] = useState([]);
+
+  useEffect(() => {
+    api.get("profile/").then((res) => {
+      const myId = res.data.id;
+      const convRef = ref(database, `users/${myId}/conversations`);
+      onValue(convRef, (snapshot) => {
+        const data = snapshot.val();
+        const loaded = [];
+        if (data) {
+          for (const key in data) {
+            loaded.push({ id: key, ...data[key] });
+          }
+          setRecentPeers(loaded);
+        }
+      });
+    });
+  }, []);
+
+  return (
+    <div className="flex flex-col h-full">
+      <div className="bg-indigo-600 p-4 flex justify-between items-center text-white shadow-md">
+        <h3 className="font-bold">Messages</h3>
+        <button onClick={toggleChat}>
+          <X size={20} />
+        </button>
+      </div>
+
+      <div className="flex-1 overflow-y-auto bg-gray-50 p-2">
+        {recentPeers.length === 0 && (
+          <p className="text-center text-gray-400 mt-10 text-sm">
+            No conversations yet.
+          </p>
+        )}
+
+        {recentPeers.map((peer) => (
+          <div
+            key={peer.id}
+            onClick={() => openChatWith(peer)}
+            className="flex items-center gap-3 p-3 hover:bg-gray-100 rounded-lg cursor-pointer transition border-b border-gray-100"
+          >
+            <div className="relative w-10 h-10 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-600 font-bold">
+              {peer.username?.charAt(0).toUpperCase() || <User size={18} />}
+              <span
+                className={`absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-white ${
+                  peer.is_online ? "bg-green-500" : "bg-gray-400"
+                }`}
+              ></span>
+            </div>
+
+            <div className="flex-1 min-w-0">
+              <p className="truncate font-semibold text-gray-800 text-sm w-48">
+                {peer.username}
+              </p>
+              <p className="text-xs text-gray-500 truncate w-48">
+                {peer.lastMessage || "Start a chat"}
+              </p>
+            </div>
+
+            {peer.unread_count > 0 && (
+              <span className="bg-red-600 text-white text-[10px] font-bold rounded-full px-2 py-[1px]">
+                {peer.unread_count > 9 ? "9+" : peer.unread_count}
+              </span>
+            )}
+          </div>
+        ))}
+      </div>
+
+      {/* Close Chat Button */}
+      <div className="p-3 border-t bg-white">
+        <button
+          onClick={toggleChat}
+          className="w-full bg-rose-600 text-white font-semibold py-2 rounded-lg hover:bg-rose-700 transition"
+        >
+          Close Chat
+        </button>
+      </div>
+    </div>
+  );
+}
+
+export default ChatList;
+
+
+
+========================================
+FILE: C:\D Drive Files\BSIT-B-F23\5th Semester\Advanced Web (Python Based)\Semester Project\Peerza_project\peerza_frontend\src\components\utils\chat\ChatWindow.jsx
+========================================
+import { useState, useEffect, useRef } from "react";
+import useChat from "../../../context/useChat";
+import { database } from "../../../firebaseConfig";
+import { ref, push, onValue, serverTimestamp, set } from "firebase/database";
+import api from "../../../api";
+import { Send, ArrowLeft, Calendar } from "lucide-react";
+import { roomIdForPair } from "../../../utils/chat";
+
+function ChatWindow() {
+  const { activeChatPeer, setActiveChatPeer } = useChat();
+
+  const [messages, setMessages] = useState([]);
+  const [newMessage, setNewMessage] = useState("");
+  const [myProfile, setMyProfile] = useState(null);
+  const [isPeerOnline, setIsPeerOnline] = useState(false);
+
+  const messagesEndRef = useRef(null);
+
+  // ----------------------------------------
+  // FETCH PROFILE ONCE
+  // ----------------------------------------
+  useEffect(() => {
+    api.get("profile/").then((res) => setMyProfile(res.data));
+  }, []);
+
+  // compute room id safely
+  const roomId =
+    myProfile && activeChatPeer
+      ? roomIdForPair(myProfile.id, activeChatPeer.id)
+      : null;
+
+  // ----------------------------------------
+  // MAIN EFFECT: MESSAGES + PRESENCE LISTENERS
+  // ----------------------------------------
+  useEffect(() => {
+    if (!roomId || !activeChatPeer) return;
+
+    const chatRef = ref(database, `chats/${roomId}/messages`);
+    const presenceRef = ref(database, `status/${activeChatPeer.id}`);
+
+    const unsubMsg = onValue(chatRef, (snapshot) => {
+      const data = snapshot.val() || {};
+      const loaded = Object.entries(data)
+        .map(([key, msg]) => ({ id: key, ...msg }))
+        .sort((a, b) => (a.timestamp || 0) - (b.timestamp || 0));
+
+      setMessages(loaded);
+    });
+
+    const unsubPresence = onValue(presenceRef, (snapshot) => {
+      const val = snapshot.val();
+      setIsPeerOnline(val?.online === true || val === "online");
+    });
+
+    return () => {
+      unsubMsg();
+      unsubPresence();
+      setMessages([]);
+    };
+  }, [roomId, activeChatPeer]);
+
+  // ----------------------------------------
+  // AUTO SCROLL
+  // ----------------------------------------
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages]);
+
+  // ----------------------------------------
+  // SEND MESSAGE
+  // ----------------------------------------
+  const sendMessage = async (e) => {
+    e.preventDefault();
+    if (!newMessage.trim() || !myProfile) return;
+
+    const msgData = {
+      senderId: myProfile.id,
+      text: newMessage,
+      timestamp: serverTimestamp(),
+    };
+
+    await push(ref(database, `chats/${roomId}/messages`), msgData);
+
+    await set(
+      ref(database, `users/${myProfile.id}/conversations/${activeChatPeer.id}`),
+      {
+        id: activeChatPeer.id,
+        username: activeChatPeer.username,
+        lastMessage: newMessage,
+        timestamp: serverTimestamp(),
+      }
+    );
+
+    await set(
+      ref(database, `users/${activeChatPeer.id}/conversations/${myProfile.id}`),
+      {
+        id: myProfile.id,
+        username: myProfile.username,
+        lastMessage: newMessage,
+        timestamp: serverTimestamp(),
+      }
+    );
+
+    setNewMessage("");
+  };
+
+  return (
+    <div className="flex flex-col h-full bg-white">
+      {/* Header */}
+      <div className="bg-indigo-600 p-3 flex items-center justify-between text-white shadow-md">
+        <div className="flex items-center gap-2 overflow-hidden">
+          <button
+            onClick={() => setActiveChatPeer(null)}
+            className="hover:bg-white/20 p-1 rounded"
+          >
+            <ArrowLeft size={20} />
+          </button>
+
+          <div className="overflow-hidden">
+            {/* ✅ Fixed: username truncation for long names */}
+            <h3 className="truncate max-w-[200px] font-semibold text-white text-ellipsis whitespace-nowrap">
+              {activeChatPeer.username}
+            </h3>
+            <p className="text-xs flex items-center gap-1">
+              <span
+                className={`w-2 h-2 rounded-full ${
+                  isPeerOnline ? "bg-green-400" : "bg-gray-400"
+                }`}
+              ></span>
+              {isPeerOnline ? "Online" : "Offline"}
+            </p>
+          </div>
+        </div>
+
+        <button
+          className="bg-white/20 p-1.5 rounded hover:bg-white/30"
+          title="Schedule Meeting"
+        >
+          <Calendar size={18} />
+        </button>
+      </div>
+
+      {/* Messages */}
+      <div className="flex-1 overflow-y-auto p-4 bg-slate-50 space-y-3">
+        {messages.map((msg) => {
+          const isMe = msg.senderId === myProfile?.id;
+
+          return (
+            <div
+              key={msg.id}
+              className={`flex ${isMe ? "justify-end" : "justify-start"}`}
+            >
+              <div
+                className={`max-w-[80%] px-4 py-2 text-sm rounded-2xl shadow-sm ${
+                  isMe
+                    ? "bg-indigo-600 text-white rounded-br-none"
+                    : "bg-white text-gray-800 border border-gray-200 rounded-bl-none"
+                }`}
+              >
+                {msg.text}
+              </div>
+            </div>
+          );
+        })}
+
+        <div ref={messagesEndRef} />
+      </div>
+
+      {/* Input */}
+      <form
+        onSubmit={sendMessage}
+        className="p-3 border-t border-gray-200 flex gap-2"
+      >
+        <input
+          className="flex-1 bg-gray-100 rounded-full px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+          placeholder="Type a message…"
+          value={newMessage}
+          onChange={(e) => setNewMessage(e.target.value)}
+        />
+
+        <button
+          type="submit"
+          className="bg-indigo-600 text-white p-2 rounded-full hover:bg-indigo-700"
+        >
+          <Send size={18} />
+        </button>
+      </form>
+    </div>
+  );
+}
+
+export default ChatWindow;
+
+
+
+========================================
+FILE: C:\D Drive Files\BSIT-B-F23\5th Semester\Advanced Web (Python Based)\Semester Project\Peerza_project\peerza_frontend\src\context\ChatContext.jsx
+========================================
+import { createContext, useState, useEffect, useCallback } from "react";
+
+import api from "../api";
+import { auth, db } from "../firebaseConfig";
+import { ref, set, onDisconnect } from "firebase/database";
+
+const ChatContext = createContext();
+export default ChatContext;
+
+// ======================================================
+//  PRESENCE HELPER
+// ======================================================
+function setPresence(firebaseUid, djangoUserId) {
+  const presenceRef = ref(db, `status/${djangoUserId}`);
+
+  set(presenceRef, {
+    firebase_uid: firebaseUid,
+    online: true,
+    last_active: Date.now(),
+  });
+
+  onDisconnect(presenceRef).set({
+    firebase_uid: firebaseUid,
+    online: false,
+    last_active: Date.now(),
+  });
+}
+
+// ======================================================
+//  CHAT PROVIDER
+// ======================================================
+export function ChatProvider({ children }) {
+  const [isOpen, setIsOpen] = useState(false);
+  const [activeChatPeer, setActiveChatPeer] = useState(null);
+  const [firebaseUid, setFirebaseUid] = useState(null);
+  const [djangoUser, setDjangoUser] = useState(null);
+
+  // Load Django user
+  useEffect(() => {
+    api.get("profile/").then((res) => setDjangoUser(res.data));
+  }, []);
+
+  // Firebase auth listener
+  useEffect(() => {
+    const unsub = auth.onAuthStateChanged((user) => {
+      if (user) setFirebaseUid(user.uid);
+    });
+    return () => unsub();
+  }, []);
+
+  // Activate presence
+  useEffect(() => {
+    if (firebaseUid && djangoUser?.id) {
+      setPresence(firebaseUid, djangoUser.id);
+    }
+  }, [firebaseUid, djangoUser]);
+
+  // Actions
+  const openChatWith = useCallback((peer) => {
+    setIsOpen(true);
+    setActiveChatPeer(peer);
+  }, []);
+
+  const closeChat = useCallback(() => {
+    setIsOpen(false);
+    setActiveChatPeer(null);
+  }, []);
+
+  const toggleChat = useCallback(() => {
+    setIsOpen((prev) => !prev);
+  }, []);
+
+  return (
+    <ChatContext.Provider
+      value={{
+        isOpen,
+        activeChatPeer,
+        openChatWith,
+        closeChat,
+        toggleChat,
+        setActiveChatPeer,
+        firebaseUid,
+        djangoUser,
+      }}
+    >
+      {children}
+    </ChatContext.Provider>
+  );
+}
+
+
+
+========================================
+FILE: C:\D Drive Files\BSIT-B-F23\5th Semester\Advanced Web (Python Based)\Semester Project\Peerza_project\peerza_frontend\src\pages\About.jsx
+========================================
+function About() {
+  return (
+    <div className="max-w-3xl mx-auto py-12 px-6">
+      <h1 className="text-4xl font-bold text-gray-900 mb-6">About Peerza</h1>
+      <div className="prose prose-indigo text-gray-600">
+        <p className="mb-4">
+          Peerza was born from a simple observation:{" "}
+          <strong>Students have immense untapped knowledge.</strong>
+        </p>
+        <p className="mb-4">
+          In universities across the world, someone is struggling with a subject
+          that another student has mastered. Peerza connects these two people.
+        </p>
+        <p className="mb-4">
+          We believe that financial barriers shouldn't stop learning. By
+          bartering skills instead of paying tuition, we create a community of
+          mutual growth.
+        </p>
+        <h2 className="text-2xl font-bold text-gray-900 mt-8 mb-4">
+          Our Mission
+        </h2>
+        <p>
+          To democratize academic support and build the world's largest
+          peer-to-peer learning network.
+        </p>
+      </div>
+    </div>
+  );
+}
+
+export default About;
+
+
+
+========================================
+FILE: C:\D Drive Files\BSIT-B-F23\5th Semester\Advanced Web (Python Based)\Semester Project\Peerza_project\peerza_frontend\src\pages\Classroom.jsx
+========================================
+
+
+
+========================================
+FILE: C:\D Drive Files\BSIT-B-F23\5th Semester\Advanced Web (Python Based)\Semester Project\Peerza_project\peerza_frontend\src\pages\Friends.jsx
+========================================
+import { useEffect, useState } from "react";
+import api from "../api";
+
+export default function Friends() {
+  const [inbox, setInbox] = useState([]);
+  const [friends, setFriends] = useState([]);
+
+  // ✅ Safe async loader with proper effect cleanup
+  useEffect(() => {
+    let isMounted = true; // avoids setting state after unmount
+
+    const load = async () => {
+      try {
+        const [i, f] = await Promise.all([
+          api.get("friends/requests/"),
+          api.get("friends/"),
+        ]);
+        if (isMounted) {
+          setInbox(i.data || []);
+          setFriends(f.data || []);
+        }
+      } catch (err) {
+        console.error("Failed to load friends:", err);
+      }
+    };
+
+    load();
+    return () => {
+      isMounted = false; // cleanup flag
+    };
+  }, []);
+
+  // ✅ Respond to friend requests
+  const respond = async (id, action) => {
+    try {
+      await api.post(`friends/request/respond/${id}/`, { action });
+      const [i, f] = await Promise.all([
+        api.get("friends/requests/"),
+        api.get("friends/"),
+      ]);
+      setInbox(i.data || []);
+      setFriends(f.data || []);
+    } catch (err) {
+      console.error("Friend respond failed:", err);
+    }
+  };
+
+  return (
+    <div className="max-w-2xl mx-auto p-4">
+      <h1 className="text-xl font-bold mb-4">Friend Requests</h1>
+
+      {inbox.length === 0 && (
+        <p className="text-gray-500 mb-6">No pending requests</p>
+      )}
+
+      {inbox.map((r) => (
+        <div
+          key={r.id}
+          className="p-3 border rounded-lg flex items-center justify-between mb-2"
+        >
+          <div>{r.from_user?.username}</div>
+          <div className="flex gap-2">
+            <button
+              onClick={() => respond(r.id, "ACCEPT")}
+              className="px-3 py-1 bg-emerald-600 text-white rounded"
+            >
+              Accept
+            </button>
+            <button
+              onClick={() => respond(r.id, "DECLINE")}
+              className="px-3 py-1 bg-gray-300 rounded"
+            >
+              Decline
+            </button>
+          </div>
+        </div>
+      ))}
+
+      <h2 className="text-lg font-bold mt-8 mb-3">Your Friends</h2>
+
+      {friends.length === 0 && <p className="text-gray-500">No friends yet</p>}
+
+      <ul className="space-y-2">
+        {friends.map((f) => (
+          <li
+            key={f.id}
+            className="p-3 border rounded-lg flex items-center justify-between"
+          >
+            <span>{f.friend?.username}</span>
+            <button
+              className="px-3 py-1 bg-pink-600 text-white rounded"
+              onClick={() => window.location.assign(`/peer/${f.friend.id}`)}
+            >
+              View Profile
+            </button>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+
+
+FILE: C:\D Drive Files\BSIT-B-F23\5th Semester\Advanced Web (Python Based)\Semester Project\Peerza_project\peerza_frontend\src\pages\GetPro.jsx
+========================================
+import { Link } from "react-router-dom";
+
+function GetPro() {
+  return (
+    <div className="max-w-7xl mx-auto py-12 px-4 sm:px-6 lg:px-8">
+      <div className="text-center mb-16">
+        <h1 className="text-4xl font-extrabold text-gray-900 sm:text-5xl">
+          Upgrade to Peerza <span className="text-indigo-600">Pro</span>
+        </h1>
+        <p className="mt-4 text-xl text-gray-500">
+          Unlock unlimited learning potential and premium features.
+        </p>
+      </div>
+
+      <div className="grid grid-cols-1 gap-8 md:grid-cols-2 lg:grid-cols-3">
+        {/* Free Plan */}
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-8 flex flex-col">
+          <h3 className="text-2xl font-bold text-gray-900">Free</h3>
+          <p className="mt-4 text-gray-500">Perfect for getting started.</p>
+          <div className="mt-6 text-5xl font-extrabold text-gray-900">$0</div>
+          <ul className="mt-8 space-y-4 flex-1">
+            <li className="flex items-center text-gray-600">
+              <span className="mr-2 text-green-500">✔</span> 2 Skills Limit
+            </li>
+            <li className="flex items-center text-gray-600">
+              <span className="mr-2 text-green-500">✔</span> Basic Search
+            </li>
+            <li className="flex items-center text-gray-600">
+              <span className="mr-2 text-green-500">✔</span> 1-on-1 Video Calls
+            </li>
+          </ul>
+          <Link
+            to="/dashboard"
+            className="mt-8 block w-full bg-indigo-50 text-indigo-700 font-bold py-3 px-6 rounded-xl text-center hover:bg-indigo-100 transition"
+          >
+            Current Plan
+          </Link>
+        </div>
+
+        {/* Pro Plan (Highlighted) */}
+        <div className="bg-indigo-600 rounded-2xl shadow-xl p-8 flex flex-col transform scale-105 relative">
+          <div className="absolute top-0 right-0 bg-yellow-400 text-indigo-900 text-xs font-bold px-3 py-1 rounded-bl-xl rounded-tr-xl uppercase tracking-wide">
+            Most Popular
+          </div>
+          <h3 className="text-2xl font-bold text-white">Pro</h3>
+          <p className="mt-4 text-indigo-100">For serious learners.</p>
+          <div className="mt-6 text-5xl font-extrabold text-white">
+            $5<span className="text-xl font-medium text-indigo-200">/mo</span>
+          </div>
+          <ul className="mt-8 space-y-4 flex-1">
+            <li className="flex items-center text-white">
+              <span className="mr-2 text-yellow-400">✔</span>{" "}
+              <strong>Unlimited Skills</strong>
+            </li>
+            <li className="flex items-center text-white">
+              <span className="mr-2 text-yellow-400">✔</span> Verified Badge 🏅
+            </li>
+            <li className="flex items-center text-white">
+              <span className="mr-2 text-yellow-400">✔</span> Priority Search
+              Ranking
+            </li>
+            <li className="flex items-center text-white">
+              <span className="mr-2 text-yellow-400">✔</span> Group Classes
+            </li>
+          </ul>
+          <button className="mt-8 block w-full bg-white text-indigo-600 font-bold py-3 px-6 rounded-xl text-center hover:bg-gray-50 transition shadow-lg">
+            Upgrade Now
+          </button>
+        </div>
+
+        {/* Team Plan */}
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-8 flex flex-col">
+          <h3 className="text-2xl font-bold text-gray-900">Campus</h3>
+          <p className="mt-4 text-gray-500">For university clubs.</p>
+          <div className="mt-6 text-5xl font-extrabold text-gray-900">$29</div>
+          <ul className="mt-8 space-y-4 flex-1">
+            <li className="flex items-center text-gray-600">
+              <span className="mr-2 text-green-500">✔</span> Everything in Pro
+            </li>
+            <li className="flex items-center text-gray-600">
+              <span className="mr-2 text-green-500">✔</span> Admin Dashboard
+            </li>
+            <li className="flex items-center text-gray-600">
+              <span className="mr-2 text-green-500">✔</span> Bulk Student Import
+            </li>
+          </ul>
+          <button className="mt-8 block w-full bg-gray-800 text-white font-bold py-3 px-6 rounded-xl text-center hover:bg-gray-900 transition">
+            Contact Sales
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export default GetPro;
+
+
+
+========================================
+FILE: C:\D Drive Files\BSIT-B-F23\5th Semester\Advanced Web (Python Based)\Semester Project\Peerza_project\peerza_frontend\src\pages\Home.jsx
+========================================
+
+
+
+========================================
+
+
+
+========================================
+FILE: C:\D Drive Files\BSIT-B-F23\5th Semester\Advanced Web (Python Based)\Semester Project\Peerza_project\peerza_frontend\src\pages\Login.jsx
+========================================
+import Form from "../components/Form";
+
+function Login() {
+  return <Form route="login/" method="login" />;
+}
+
+export default Login;
+FILE: C:\D Drive Files\BSIT-B-F23\5th Semester\Advanced Web (Python Based)\Semester Project\Peerza_project\peerza_frontend\src\pages\PeerProfile.jsx
+========================================
+import { useState, useEffect } from "react";
+import { useParams, useNavigate } from "react-router-dom";
+import api from "../api";
+
+function PeerProfile() {
+  const { id } = useParams();
+  const navigate = useNavigate();
+
+  const [peer, setPeer] = useState(null);
+  const [skills, setSkills] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const controller = new AbortController();
+
+    (async () => {
+      try {
+        const res = await api.get(`users/${id}/`, {
+          signal: controller.signal,
+        });
+
+        // Match backend shape { user: {...}, skills: [...] }
+        setPeer(res.data?.user || null);
+        setSkills(res.data?.skills || []);
+      } catch (err) {
+        if (err?.name === "CanceledError" || err?.code === "ERR_CANCELED") {
+          return;
+        }
+
+        const status = err?.response?.status;
+        if (status === 401) {
+          alert("Your session expired. Please log in again.");
+          navigate("/login");
+        } else if (status === 404) {
+          alert("That profile does not exist.");
+          navigate("/dashboard");
+        } else {
+          console.error("PeerProfile load error:", err);
+          alert("Failed to load profile");
+        }
+      } finally {
+        setLoading(false);
+      }
+    })();
+
+    return () => controller.abort();
+  }, [id, navigate]);
+
+  if (loading) {
+    return (
+      <div className="w-full flex justify-center mt-20">
+        <div className="animate-pulse text-gray-500">Loading Profile…</div>
+      </div>
+    );
+  }
+
+  if (!peer) {
+    return (
+      <div className="w-full flex flex-col items-center mt-16">
+        <p className="text-gray-600 mb-4">No profile data available.</p>
+        <button
+          onClick={() => navigate("/dashboard")}
+          className="px-4 py-2 rounded bg-indigo-600 text-white font-semibold hover:bg-indigo-700"
+        >
+          Back to dashboard
+        </button>
+      </div>
+    );
+  }
+
+  const teaching = skills.filter((s) => s.skill_type === "TEACH");
+  const learning = skills.filter((s) => s.skill_type === "LEARN");
+
+  return (
+    <div className="max-w-3xl mx-auto">
+      <div className="bg-white rounded-xl shadow-lg p-8 mb-8 border border-indigo-50 text-center">
+        <div className="w-24 h-24 bg-indigo-100 rounded-full mx-auto flex items-center justify-center text-3xl font-bold text-indigo-600 mb-4">
+          {(peer.username || "?").charAt(0).toUpperCase()}
+        </div>
+        <h1 className="text-3xl font-bold text-gray-800 mb-2">
+          {peer.username}
+        </h1>
+        <p className="text-gray-500 max-w-md mx-auto">
+          {peer.bio || "This user hasn't written a bio yet."}
+        </p>
+
+        {/* ✅ Updated: Replaced old button section with Add Friend + Start Class */}
+        <div className="mt-3 flex gap-3 justify-center">
+          <button
+            onClick={async () => {
+              await api.post(`friends/request/${peer.id}/`);
+              alert("Friend request sent!");
+            }}
+            className="bg-emerald-600 text-white px-5 py-2 rounded-full font-semibold hover:bg-emerald-700"
+          >
+            Add Friend
+          </button>
+
+          <button
+            onClick={() => navigate(`/room/${peer.id}`)}
+            className="bg-indigo-600 text-white px-5 py-2 rounded-full font-semibold hover:bg-indigo-700"
+          >
+            Start Class 🎥
+          </button>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="bg-white rounded-xl shadow-md p-6 border-t-4 border-green-500">
+          <h2 className="text-xl font-bold text-gray-800 mb-4">Teaching 👨‍🏫</h2>
+          <div className="flex flex-wrap gap-2">
+            {teaching.length > 0 ? (
+              teaching.map((item) => (
+                <span
+                  key={item.id}
+                  className="bg-green-100 text-green-800 px-3 py-1 rounded-full text-sm font-medium"
+                >
+                  {item.skill?.name ?? "Unknown"}
+                </span>
+              ))
+            ) : (
+              <p className="text-gray-400">No skills listed.</p>
+            )}
+          </div>
+        </div>
+
+        <div className="bg-white rounded-xl shadow-md p-6 border-t-4 border-yellow-500">
+          <h2 className="text-xl font-bold text-gray-800 mb-4">Learning 📚</h2>
+          <div className="flex flex-wrap gap-2">
+            {learning.length > 0 ? (
+              learning.map((item) => (
+                <span
+                  key={item.id}
+                  className="bg-yellow-100 text-yellow-800 px-3 py-1 rounded-full text-sm font-medium"
+                >
+                  {item.skill?.name ?? "Unknown"}
+                </span>
+              ))
+            ) : (
+              <p className="text-gray-400">No learning goals listed.</p>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export default PeerProfile;
+
+
+
+========================================
+FILE: C:\D Drive Files\BSIT-B-F23\5th Semester\Advanced Web (Python Based)\Semester Project\Peerza_project\peerza_frontend\src\pages\Privacy.jsx
+========================================
+function Privacy() {
+  return (
+    <div className="max-w-3xl mx-auto py-12 px-6">
+      <h1 className="text-4xl font-bold text-gray-900 mb-6">Privacy Policy</h1>
+      <p className="text-gray-500 mb-8">Last Updated: November 2025</p>
+
+      <div className="space-y-6 text-gray-600">
+        <section>
+          <h2 className="text-xl font-bold text-gray-800 mb-2">
+            1. Information We Collect
+          </h2>
+          <p>
+            We collect your username, email, and the skills you list on your
+            profile. We do not record video calls.
+          </p>
+        </section>
+        <section>
+          <h2 className="text-xl font-bold text-gray-800 mb-2">
+            2. How We Use Data
+          </h2>
+          <p>
+            Your data is used solely to match you with other peers and improve
+            the matchmaking algorithm.
+          </p>
+        </section>
+        <section>
+          <h2 className="text-xl font-bold text-gray-800 mb-2">
+            3. Data Security
+          </h2>
+          <p>
+            We use industry-standard encryption to protect your account
+            information.
+          </p>
+        </section>
+      </div>
+    </div>
+  );
+}
+
+export default Privacy;
+
+
+
+========================================
+FILE: C:\D Drive Files\BSIT-B-F23\5th Semester\Advanced Web (Python Based)\Semester Project\Peerza_project\peerza_frontend\src\pages\Register.jsx
+========================================
+
+
+
+========================================
+FILE: C:\D Drive Files\BSIT-B-F23\5th Semester\Advanced Web (Python Based)\Semester Project\Peerza_project\peerza_frontend\src\pages\Settings.jsx
+========================================
+import { useState, useEffect } from "react";
+import api from "../api";
+
+function Settings() {
+  const [username, setUsername] = useState("");
+  const [bio, setBio] = useState("");
+  const [avatar, setAvatar] = useState(null);
+  const [preview, setPreview] = useState(null);
+
+  const [oldPassword, setOldPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  // 1. Fetch Data
+  useEffect(() => {
+    api
+      .get("profile/")
+      .then((res) => {
+        setUsername(res.data.username);
+        setBio(res.data.bio || "");
+        if (res.data.avatar) {
+          setPreview(
+            res.data.avatar.startsWith("http")
+              ? res.data.avatar
+              : `${import.meta.env.VITE_API_URL || "http://127.0.0.1:8000"}${
+                  res.data.avatar
+                }`
+          );
+        }
+        setLoading(false);
+      })
+      .catch(() => {
+        setError("Failed to load profile data.");
+        setLoading(false);
+      });
+  }, []);
+
+  const handleImageChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      setAvatar(file);
+      setPreview(URL.createObjectURL(file));
+    }
+  };
+
+  // --- NEW: REMOVE AVATAR FUNCTION ---
+  const handleRemoveAvatar = async () => {
+    if (!confirm("Are you sure you want to remove your profile picture?"))
+      return;
+
+    const formData = new FormData();
+    formData.append("remove_avatar", "true"); // Send the flag
+
+    try {
+      const res = await api.patch("profile/", formData, {
+        headers: { "Content-Type": "multipart/form-data" },
+      });
+      if (res.status === 200) {
+        setAvatar(null);
+        setPreview(null); // Clear preview to show default initial
+        alert("Profile picture removed.");
+      }
+    } catch {
+      alert("Failed to remove picture.");
+    }
+  };
+
+  const handleProfileUpdate = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    setError(null);
+
+    const formData = new FormData();
+    formData.append("username", username);
+    formData.append("bio", bio);
+    if (avatar) {
+      formData.append("avatar", avatar);
+    }
+
+    try {
+      const res = await api.patch("profile/", formData, {
+        headers: { "Content-Type": "multipart/form-data" },
+      });
+      if (res.status === 200) {
+        alert("Profile updated!");
+      }
+    } catch {
+      setError("Update failed.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handlePasswordChange = async (e) => {
+    e.preventDefault();
+    try {
+      const res = await api.post("change-password/", {
+        old_password: oldPassword,
+        new_password: newPassword,
+      });
+      if (res.status === 200) {
+        alert("Password changed successfully!");
+        setOldPassword("");
+        setNewPassword("");
+      }
+    } catch {
+      alert("Failed to change password. Check your old password.");
+    }
+  };
+
+  if (loading) return <div className="text-center mt-20">Loading...</div>;
+
+  return (
+    <div className="min-h-screen bg-gray-50 p-8">
+      <div className="max-w-2xl mx-auto space-y-8">
+        {/* --- PROFILE SETTINGS --- */}
+        <div className="bg-white p-8 rounded-xl shadow-sm border border-gray-200">
+          <h1 className="text-2xl font-bold text-gray-800 mb-6">
+            Profile Settings 📷
+          </h1>
+
+          {error && (
+            <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
+              {error}
+            </div>
+          )}
+
+          <form onSubmit={handleProfileUpdate}>
+            {/* Avatar Section */}
+            <div className="flex items-center gap-6 mb-8">
+              {/* Preview Circle */}
+              <div className="w-24 h-24 rounded-full bg-gray-100 overflow-hidden border-2 border-indigo-100 flex-shrink-0 shadow-inner flex items-center justify-center">
+                {preview ? (
+                  <img
+                    src={preview}
+                    alt="Avatar"
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <span className="text-gray-400 text-3xl font-bold">
+                    {username.charAt(0).toUpperCase()}
+                  </span>
+                )}
+              </div>
+
+              {/* Controls */}
+              <div className="flex-1">
+                <label className="block text-sm font-bold text-gray-700 mb-2">
+                  Profile Picture
+                </label>
+                <div className="flex gap-3 items-center">
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={handleImageChange}
+                    className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100 cursor-pointer"
+                  />
+                  {/* NEW REMOVE BUTTON */}
+                  {preview && (
+                    <button
+                      type="button"
+                      onClick={handleRemoveAvatar}
+                      className="text-red-500 hover:text-red-700 text-sm font-bold border border-red-200 px-3 py-2 rounded-full hover:bg-red-50 transition"
+                    >
+                      Remove
+                    </button>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 gap-4 mb-6">
+              <div>
+                <label className="block text-sm font-bold text-gray-700 mb-1">
+                  Username
+                </label>
+                <input
+                  type="text"
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
+                  className="w-full p-3 border rounded-lg bg-gray-50"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-bold text-gray-700 mb-1">
+                  Bio
+                </label>
+                <textarea
+                  value={bio}
+                  onChange={(e) => setBio(e.target.value)}
+                  className="w-full p-3 border rounded-lg h-24"
+                />
+              </div>
+            </div>
+
+            <button
+              type="submit"
+              className="bg-indigo-600 text-white px-6 py-2 rounded-lg font-bold hover:bg-indigo-700 transition"
+            >
+              Save Profile
+            </button>
+          </form>
+        </div>
+
+        {/* --- SECURITY SETTINGS --- */}
+        <div className="bg-white p-8 rounded-xl shadow-sm border border-gray-200">
+          <h2 className="text-xl font-bold text-gray-800 mb-6">Security 🔒</h2>
+          <form onSubmit={handlePasswordChange}>
+            <div className="grid grid-cols-1 gap-4 mb-4">
+              <input
+                type="password"
+                placeholder="Current Password"
+                value={oldPassword}
+                onChange={(e) => setOldPassword(e.target.value)}
+                className="w-full p-3 border rounded-lg"
+                required
+              />
+              <input
+                type="password"
+                placeholder="New Password"
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+                className="w-full p-3 border rounded-lg"
+                required
+              />
+            </div>
+            <button
+              type="submit"
+              className="bg-gray-800 text-white px-6 py-2 rounded-lg font-bold hover:bg-gray-900 transition"
+            >
+              Change Password
+            </button>
+          </form>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export default Settings;
+
+
+
+========================================
+FILE: C:\D Drive Files\BSIT-B-F23\5th Semester\Advanced Web (Python Based)\Semester Project\Peerza_project\peerza_frontend\src\pages\Terms.jsx
+========================================
+function Terms() {
+  return (
+    <div className="max-w-3xl mx-auto py-12 px-6">
+      <h1 className="text-4xl font-bold text-gray-900 mb-6">
+        Terms of Service
+      </h1>
+
+      <div className="space-y-6 text-gray-600">
+        <p>By using Peerza, you agree to the following terms:</p>
+        <ul className="list-disc pl-5 space-y-2">
+          <li>You will treat all peers with respect and professionalism.</li>
+          <li>
+            You will not use the platform for illegal activities or harassment.
+          </li>
+          <li>
+            Peerza is not responsible for the quality of instruction provided by
+            peers.
+          </li>
+          <li>
+            We reserve the right to ban accounts that violate our community
+            guidelines.
+          </li>
+        </ul>
+      </div>
+    </div>
+  );
+}
+
+export default Terms;
+
+
+

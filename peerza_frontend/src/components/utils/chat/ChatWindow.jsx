@@ -40,10 +40,10 @@ function ChatWindow() {
 
     const unsubMsg = onValue(chatRef, (snapshot) => {
       const data = snapshot.val() || {};
-      const loaded = Object.entries(data).map(([key, msg]) => ({
-        id: key,
-        ...msg,
-      }));
+      const loaded = Object.entries(data)
+        .map(([key, msg]) => ({ id: key, ...msg }))
+        .sort((a, b) => (a.timestamp || 0) - (b.timestamp || 0));
+
       setMessages(loaded);
     });
 

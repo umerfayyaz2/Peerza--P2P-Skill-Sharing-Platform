@@ -2,17 +2,16 @@ import { useState, useEffect } from "react";
 import { useChat } from "../../context/ChatContext";
 import { database } from "../../firebaseConfig";
 import { ref, onValue } from "firebase/database";
-import api from "../../api"; // To get my ID
+import api from "../../api";
 import { X, User } from "lucide-react";
 
 function ChatList() {
   const { toggleChat, openChatWith } = useChat();
   const [recentPeers, setRecentPeers] = useState([]);
-  //   const [myId, setMyId] = useState(null);
 
   useEffect(() => {
     api.get("profile/").then((res) => {
-      const myId = res.data.id; // local variable, not React state
+      const myId = res.data.id;
       const convRef = ref(database, `users/${myId}/conversations`);
       onValue(convRef, (snapshot) => {
         const data = snapshot.val();
@@ -42,13 +41,13 @@ function ChatList() {
             No conversations yet.
           </p>
         )}
+
         {recentPeers.map((peer) => (
           <div
             key={peer.id}
             onClick={() => openChatWith(peer)}
             className="flex items-center gap-3 p-3 hover:bg-gray-100 rounded-lg cursor-pointer transition border-b border-gray-100"
           >
-            {/* Profile circle with online indicator */}
             <div className="relative w-10 h-10 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-600 font-bold">
               {peer.username?.charAt(0).toUpperCase() || <User size={18} />}
               <span
@@ -59,15 +58,14 @@ function ChatList() {
             </div>
 
             <div className="flex-1 min-w-0">
-              <p className="truncate font-semibold text-gray-800 text-sm">
+              <p className="truncate font-semibold text-gray-800 text-sm w-48">
                 {peer.username}
               </p>
-              <p className="text-xs text-gray-500 truncate w-40">
+              <p className="text-xs text-gray-500 truncate w-48">
                 {peer.lastMessage || "Start a chat"}
               </p>
             </div>
 
-            {/* Unread message badge */}
             {peer.unread_count > 0 && (
               <span className="bg-red-600 text-white text-[10px] font-bold rounded-full px-2 py-[1px]">
                 {peer.unread_count > 9 ? "9+" : peer.unread_count}
@@ -75,6 +73,16 @@ function ChatList() {
             )}
           </div>
         ))}
+      </div>
+
+      {/* Close Chat Button */}
+      <div className="p-3 border-t bg-white">
+        <button
+          onClick={toggleChat}
+          className="w-full bg-rose-600 text-white font-semibold py-2 rounded-lg hover:bg-rose-700 transition"
+        >
+          Close Chat
+        </button>
       </div>
     </div>
   );
