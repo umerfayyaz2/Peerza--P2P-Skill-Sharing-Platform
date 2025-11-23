@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import User, Skill, UserSkill, Meeting, Notification, Message,FriendRequest, Friendship # ✅ added Message
+from .models import User, Skill, UserSkill, Meeting, Notification, Message, FriendRequest, Friendship
 
 
 # 1. Skill Serializer
@@ -67,25 +67,16 @@ class MeetingSerializer(serializers.ModelSerializer):
         ]
 
 
-# 6. Notification Serializer
+# 6. ✅ Updated Notification Serializer
 class NotificationSerializer(serializers.ModelSerializer):
-    user = UserSerializer(read_only=True)
     actor = UserSerializer(read_only=True)
 
     class Meta:
         model = Notification
-        fields = [
-            'id',
-            'user',
-            'actor',
-            'type',
-            'data',
-            'is_read',
-            'created_at'
-        ]
+        fields = ("id", "type", "actor", "data", "is_read", "created_at")
 
 
-# 7. Message Serializer ✅ (NEW)
+# 7. Message Serializer
 class MessageSerializer(serializers.ModelSerializer):
     sender = UserSerializer(read_only=True)
     receiver = UserSerializer(read_only=True)
@@ -94,14 +85,18 @@ class MessageSerializer(serializers.ModelSerializer):
         model = Message
         fields = ["id", "sender", "receiver", "content", "timestamp", "is_read"]
 
+
+# 8. Friend Request Serializer
 class FriendRequestSerializer(serializers.ModelSerializer):
     from_user = UserSerializer(read_only=True)
-    to_user   = UserSerializer(read_only=True)
+    to_user = UserSerializer(read_only=True)
 
     class Meta:
         model = FriendRequest
         fields = ["id", "from_user", "to_user", "status", "created_at"]
 
+
+# 9. Friendship Serializer
 class FriendshipSerializer(serializers.ModelSerializer):
     friend = UserSerializer(read_only=True)
 

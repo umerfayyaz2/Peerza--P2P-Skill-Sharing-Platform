@@ -36,6 +36,10 @@ urlpatterns = [
     path('meetings/<int:meeting_id>/respond/', views.respond_meeting, name='respond_meeting'),
     path('meetings/my/', views.my_meetings, name='my_meetings'),
     path('notifications/', views.notifications_list, name='notifications_list'),
+    # --- Notifications ---
+    path("notifications/", views.notifications_list, name="notifications_list"),
+    path("notifications/mark-read/<int:notification_id>/", views.mark_notification_read, name="mark_notification_read"),
+
 
     # --- Public Profile Route ---
     path("users/<int:pk>/", views.get_public_profile, name="public_profile"),

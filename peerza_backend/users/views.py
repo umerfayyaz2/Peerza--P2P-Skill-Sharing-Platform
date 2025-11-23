@@ -321,8 +321,10 @@ def my_meetings(request):
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def notifications_list(request):
-    notes = Notification.objects.filter(user=request.user).order_by("-created_at")[:50]
+    # return only unread to keep UI clean
+    notes = Notification.objects.filter(user=request.user, is_read=False).order_by("-created_at")[:50]
     return Response(NotificationSerializer(notes, many=True).data)
+
 
 
 # =============================================================
@@ -470,9 +472,14 @@ def friend_request_send(request, user_id):
         fr.status = FriendRequest.PENDING
         fr.save()
 
+    # ✅ Fixed — include request_id in the notification payload
     Notification.objects.create(
-        user=to_user, actor=me, type="FRIEND_REQUEST", data={}
+        user=to_user,
+        actor=me,
+        type="FRIEND_REQUEST",
+        data={"request_id": fr.id}
     )
+
     return Response({"ok": True}, status=201)
 
 
@@ -513,7 +520,11 @@ def friend_requests_inbox(request):
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def mark_notification_read(request, notification_id):
-    notification = Notification.objects.get(id=notification_id, user=request.user)
+    try:
+        notification = Notification.objects.get(id=notification_id, user=request.user)
+    except Notification.DoesNotExist:
+        return Response({"detail": "Not found"}, status=404)
+
     notification.is_read = True
     notification.save()
-    return Response({"message": "Marked as read"}, status=status.HTTP_200_OK)
+    return Response({"ok": True})
