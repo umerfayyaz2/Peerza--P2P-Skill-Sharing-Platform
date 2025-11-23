@@ -15,6 +15,7 @@ export default function NotificationsBell() {
       const res = await api.get("notifications/");
       const data = Array.isArray(res.data) ? res.data : [];
 
+      // Trigger wiggle when new notifications appear
       if (data.length > prevCount.current) {
         setWiggle(true);
         setTimeout(() => setWiggle(false), 800);
@@ -36,11 +37,8 @@ export default function NotificationsBell() {
       if (isMounted) await load();
     };
 
-    // initial fetch
-    fetchData();
-
-    // periodic refresh
-    const t = setInterval(fetchData, 8000);
+    fetchData(); // Initial load
+    const t = setInterval(fetchData, 8000); // Refresh every 8s
 
     return () => {
       isMounted = false;
@@ -61,28 +59,60 @@ export default function NotificationsBell() {
 
   // --- Mark notification read ---
   const markRead = async (id) => {
-    setItems((prev) => prev.filter((n) => n.id !== id));
-    setCount((c) => Math.max(0, c - 1));
     try {
       await api.post(`notifications/mark-read/${id}/`);
+      setItems((prev) => prev.filter((n) => n.id !== id));
+      setCount((c) => Math.max(0, c - 1));
     } catch (err) {
       console.error("markRead failed:", err);
     }
   };
 
-  // --- Accept/Decline Friend Request ---
-  const respondFriend = async (notif, action) => {
-    const reqId = notif?.data?.request_id;
-    if (!reqId) return;
-
-    setItems((prev) => prev.filter((n) => n.id !== notif.id));
-    setCount((c) => Math.max(0, c - 1));
-
+  // --- Respond to friend request ---
+  const handleRespond = async (notif, action) => {
     try {
-      await api.post(`friends/request/respond/${reqId}/`, { action });
+      const reqId = notif?.data?.request_id;
+      if (!reqId) {
+        console.warn("No request_id found in notification:", notif);
+        return;
+      }
+
+      const token = localStorage.getItem("access");
+      if (!token) {
+        alert("You are not authenticated");
+        return;
+      }
+
+      const res = await fetch(
+        `http://127.0.0.1:8000/api/friends/request/respond/${reqId}/`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({ action }),
+        }
+      );
+
+      if (!res.ok) {
+        const errorText = await res.text();
+        console.error("Respond failed:", errorText);
+        alert("Failed to respond to friend request.");
+        return;
+      }
+
+      // Mark as read after responding
       await api.post(`notifications/mark-read/${notif.id}/`);
+
+      // Update state instantly
+      setItems((prev) => prev.filter((n) => n.id !== notif.id));
+      setCount((c) => Math.max(0, c - 1));
+
+      // Refresh notifications after a short delay
+      setTimeout(() => load(), 400);
     } catch (err) {
-      console.error("respondFriend failed:", err);
+      console.error("Error in handleRespond:", err);
     }
   };
 
@@ -147,13 +177,16 @@ export default function NotificationsBell() {
                 {n.type === "FRIEND_REQUEST" && (
                   <div className="mt-2 flex gap-2">
                     <button
-                      onClick={() => respondFriend(n, "ACCEPT")}
+                      onClick={() => {
+                        console.log("ACCEPT clicked", n);
+                        handleRespond(n, "ACCEPT");
+                      }}
                       className="px-3 py-1 rounded bg-emerald-600 text-white text-xs font-semibold hover:bg-emerald-700"
                     >
                       Accept
                     </button>
                     <button
-                      onClick={() => respondFriend(n, "DECLINE")}
+                      onClick={() => handleRespond(n, "DECLINE")}
                       className="px-3 py-1 rounded bg-rose-600 text-white text-xs font-semibold hover:bg-rose-700"
                     >
                       Decline
