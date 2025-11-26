@@ -1,5 +1,6 @@
 import { useEffect, useState, useRef, useCallback } from "react";
 import api from "../api";
+import { emit } from "../eventBus"; // ✅ added for broadcasting
 
 export default function NotificationsBell() {
   const [count, setCount] = useState(0);
@@ -15,7 +16,6 @@ export default function NotificationsBell() {
       const res = await api.get("notifications/");
       const data = Array.isArray(res.data) ? res.data : [];
 
-      // Trigger wiggle when new notifications appear
       if (data.length > prevCount.current) {
         setWiggle(true);
         setTimeout(() => setWiggle(false), 800);
@@ -32,13 +32,12 @@ export default function NotificationsBell() {
   // --- Safe polling loop ---
   useEffect(() => {
     let isMounted = true;
-
     const fetchData = async () => {
       if (isMounted) await load();
     };
 
-    fetchData(); // Initial load
-    const t = setInterval(fetchData, 8000); // Refresh every 8s
+    fetchData();
+    const t = setInterval(fetchData, 8000);
 
     return () => {
       isMounted = false;
@@ -68,14 +67,11 @@ export default function NotificationsBell() {
     }
   };
 
-  // --- Respond to friend request ---
+  // --- Friend request handler ---
   const handleRespond = async (notif, action) => {
     try {
       const reqId = notif?.data?.request_id;
-      if (!reqId) {
-        console.warn("No request_id found in notification:", notif);
-        return;
-      }
+      if (!reqId) return console.warn("No request_id found in notification");
 
       const token = localStorage.getItem("access");
       if (!token) {
@@ -102,14 +98,9 @@ export default function NotificationsBell() {
         return;
       }
 
-      // Mark as read after responding
       await api.post(`notifications/mark-read/${notif.id}/`);
-
-      // Update state instantly
       setItems((prev) => prev.filter((n) => n.id !== notif.id));
       setCount((c) => Math.max(0, c - 1));
-
-      // Refresh notifications after a short delay
       setTimeout(() => load(), 400);
     } catch (err) {
       console.error("Error in handleRespond:", err);
@@ -155,32 +146,107 @@ export default function NotificationsBell() {
               >
                 <div className="flex items-start justify-between gap-3">
                   <div className="flex-1">
-                    <span className="font-medium">{n.actor?.username}</span>{" "}
-                    {n.type === "FRIEND_REQUEST" &&
-                      "sent you a friend request 💌"}
-                    {n.type === "FRIEND_ACCEPTED" &&
-                      "accepted your friend request ✅"}
-                    {n.type === "FRIEND_DECLINED" &&
-                      "declined your friend request ❌"}
+                    {/* Friend request types */}
+                    {n.type === "FRIEND_REQUEST" && (
+                      <p>
+                        <span className="font-medium">{n.actor?.username}</span>{" "}
+                        sent you a friend request 💌
+                      </p>
+                    )}
+                    {n.type === "FRIEND_ACCEPTED" && (
+                      <p>
+                        <span className="font-medium">{n.actor?.username}</span>{" "}
+                        accepted your friend request ✅
+                      </p>
+                    )}
+                    {n.type === "FRIEND_DECLINED" && (
+                      <p>
+                        <span className="font-medium">{n.actor?.username}</span>{" "}
+                        declined your friend request ❌
+                      </p>
+                    )}
+
+                    {/* ✅ Meeting Request Section with Broadcast Sync */}
+                    {n.type === "MEETING_REQUEST" && (
+                      <div className="flex flex-col">
+                        <p>
+                          <span className="font-medium">
+                            {n.actor?.username}
+                          </span>{" "}
+                          invited you to a meeting 📅
+                        </p>
+                        <div className="mt-2 flex gap-2">
+                          {/* ✅ ACCEPT */}
+                          <button
+                            onClick={async () => {
+                              await api.post(
+                                `meetings/${n.data.meeting_id}/respond/`,
+                                { response: "ACCEPT" }
+                              );
+                              await api.post(
+                                `notifications/mark-read/${n.id}/`
+                              );
+                              emit("meeting-updated", {
+                                meetingId: n.data.meeting_id,
+                                status: "ACCEPTED",
+                              }); // 🚀 broadcast event
+                              load();
+                            }}
+                            className="px-3 py-1 rounded bg-green-600 text-white text-xs font-semibold hover:bg-green-700"
+                          >
+                            Accept
+                          </button>
+
+                          {/* ❌ DECLINE */}
+                          <button
+                            onClick={async () => {
+                              await api.post(
+                                `meetings/${n.data.meeting_id}/respond/`,
+                                { response: "DECLINE" }
+                              );
+                              await api.post(
+                                `notifications/mark-read/${n.id}/`
+                              );
+                              emit("meeting-updated", {
+                                meetingId: n.data.meeting_id,
+                                status: "DECLINED",
+                              });
+                              load();
+                            }}
+                            className="px-3 py-1 rounded bg-red-600 text-white text-xs font-semibold hover:bg-red-700"
+                          >
+                            Decline
+                          </button>
+                        </div>
+                      </div>
+                    )}
+
+                    {n.type === "MEETING_RESPONSE" && (
+                      <p>
+                        <span className="font-medium">{n.actor?.username}</span>{" "}
+                        responded to your meeting request ({n.data?.response})
+                        📨
+                      </p>
+                    )}
                   </div>
 
-                  {n.type !== "FRIEND_REQUEST" && (
-                    <button
-                      onClick={() => markRead(n.id)}
-                      className="text-xs text-indigo-600 hover:underline"
-                    >
-                      Mark read
-                    </button>
-                  )}
+                  {/* Mark Read Button */}
+                  {n.type !== "FRIEND_REQUEST" &&
+                    n.type !== "MEETING_REQUEST" && (
+                      <button
+                        onClick={() => markRead(n.id)}
+                        className="text-xs text-indigo-600 hover:underline"
+                      >
+                        Mark read
+                      </button>
+                    )}
                 </div>
 
+                {/* Friend Request Buttons */}
                 {n.type === "FRIEND_REQUEST" && (
                   <div className="mt-2 flex gap-2">
                     <button
-                      onClick={() => {
-                        console.log("ACCEPT clicked", n);
-                        handleRespond(n, "ACCEPT");
-                      }}
+                      onClick={() => handleRespond(n, "ACCEPT")}
                       className="px-3 py-1 rounded bg-emerald-600 text-white text-xs font-semibold hover:bg-emerald-700"
                     >
                       Accept
@@ -199,7 +265,6 @@ export default function NotificationsBell() {
         </div>
       )}
 
-      {/* Wiggle Animation */}
       <style>{`
         @keyframes wiggle {
           0%, 100% { transform: rotate(0deg); }

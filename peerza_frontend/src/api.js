@@ -3,8 +3,8 @@ import axios from "axios";
 const BASE_URL =
   import.meta.env.VITE_API_BASE_URL || "http://127.0.0.1:8000/api/";
 
-export const ACCESS_TOKEN = "access_token";
-export const REFRESH_TOKEN = "refresh_token";
+export const ACCESS_TOKEN = "access"; // ✅ match everywhere (was "access_token")
+export const REFRESH_TOKEN = "refresh"; // ✅ match everywhere (was "refresh_token")
 
 const api = axios.create({
   baseURL: BASE_URL,
@@ -13,7 +13,9 @@ const api = axios.create({
 // ---- Attach token to every request ----
 api.interceptors.request.use((config) => {
   const token = localStorage.getItem(ACCESS_TOKEN);
-  if (token) config.headers.Authorization = `Bearer ${token}`;
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
   return config;
 });
 

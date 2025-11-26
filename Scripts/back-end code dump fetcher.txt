@@ -1,0 +1,76 @@
+# ============================================
+# PEERZA BACKEND CODE DUMP SCRIPT (WORKING + SAFE)
+# Reads only source files (.py, .js, .jsx, .css, .html)
+# Ignores caches, migrations, venvs, builds, DBs
+# ============================================
+
+# Root project path
+$projectPath = "C:\D Drive Files\BSIT-B-F23\5th Semester\Advanced Web (Python Based)\Semester Project\Peerza_project"
+
+# Output file
+$outputFile = Join-Path $projectPath "backend_project_code.txt"
+
+# Target backend folder
+$targetPath = Join-Path $projectPath "peerza_backend"
+
+# Folders to ignore
+$ignoreFolders = @(
+    "__pycache__",
+    ".venv",
+    "venv",
+    "env",
+    "migrations",
+    "build",
+    "dist",
+    "node_modules",
+    ".git"
+)
+
+# File types to include
+$includeExtensions = ".py", ".js", ".jsx", ".css", ".html"
+
+# Files to explicitly ignore
+$ignoreExtensions = ".sqlite3", ".db"
+
+# Check ignored paths
+function Should-IgnorePath {
+    param($path)
+    foreach ($ignore in $ignoreFolders) {
+        if ($path -match [regex]::Escape($ignore)) { return $true }
+    }
+    return $false
+}
+
+# Check ignored files
+function Should-IgnoreFile {
+    param($file)
+    foreach ($ext in $ignoreExtensions) {
+        if ($file.Name.EndsWith($ext)) { return $true }
+    }
+    return $false
+}
+
+# Prepare output
+if (Test-Path $outputFile) { Remove-Item $outputFile }
+New-Item -ItemType File -Path $outputFile | Out-Null
+
+# Collect files
+$files = Get-ChildItem -Path $targetPath -Recurse -File -ErrorAction SilentlyContinue |
+    Where-Object { -not (Should-IgnorePath $_.FullName) -and -not (Should-IgnoreFile $_) -and ($includeExtensions -contains $_.Extension) }
+
+# Write content
+foreach ($file in $files) {
+    Add-Content $outputFile "========================================"
+    Add-Content $outputFile "FILE: $($file.FullName)"
+    Add-Content $outputFile "========================================"
+    try {
+        Get-Content $file.FullName -ErrorAction Stop | Add-Content $outputFile
+    }
+    catch {
+        Add-Content $outputFile "[ERROR READING FILE]"
+    }
+    Add-Content $outputFile "`n`n"
+}
+
+Write-Host "✅ DONE! Backend project code safely exported to:"
+Write-Host $outputFile

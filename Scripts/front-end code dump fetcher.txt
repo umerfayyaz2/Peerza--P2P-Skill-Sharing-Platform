@@ -1,0 +1,71 @@
+# ============================================
+# PEERZA UNIVERSAL CODE DUMP (WORKING FIX)
+# Collects all .py, .js, .jsx, .css, .html
+# ============================================
+
+$projectPath = "C:\D Drive Files\BSIT-B-F23\5th Semester\Advanced Web (Python Based)\Semester Project\Peerza_project"
+
+# Adjust output file name here (frontend or backend)
+$outputFile = Join-Path $projectPath "frontend_project_code.txt"
+
+# Change the folder for backend if needed
+$targetPath = Join-Path $projectPath "peerza_frontend"  # ← Change to peerza_backend for backend
+
+# Ignore folders
+$ignoreFolders = @(
+    "node_modules",
+    "__pycache__",
+    ".venv",
+    "venv",
+    "env",
+    "migrations",
+    "build",
+    "dist",
+    ".git"
+)
+
+# Allowed extensions
+$includeExtensions = ".py", ".js", ".jsx", ".css", ".html"
+
+# Ignore file extensions (databases)
+$ignoreExtensions = ".sqlite3", ".db"
+
+function Should-IgnorePath {
+    param($path)
+    foreach ($ignore in $ignoreFolders) {
+        if ($path -match [regex]::Escape($ignore)) { return $true }
+    }
+    return $false
+}
+
+function Should-IgnoreFile {
+    param($file)
+    foreach ($ext in $ignoreExtensions) {
+        if ($file.Name.EndsWith($ext)) { return $true }
+    }
+    return $false
+}
+
+# Reset output file
+if (Test-Path $outputFile) { Remove-Item $outputFile }
+New-Item -ItemType File -Path $outputFile | Out-Null
+
+# Find files recursively
+$files = Get-ChildItem -Path $targetPath -Recurse -File -ErrorAction SilentlyContinue |
+    Where-Object { -not (Should-IgnorePath $_.FullName) -and -not (Should-IgnoreFile $_) -and ($includeExtensions -contains $_.Extension) }
+
+foreach ($file in $files) {
+    Add-Content $outputFile "========================================"
+    Add-Content $outputFile "FILE: $($file.FullName)"
+    Add-Content $outputFile "========================================"
+    try {
+        Get-Content $file.FullName -ErrorAction Stop | Add-Content $outputFile
+    }
+    catch {
+        Add-Content $outputFile "[ERROR READING FILE]"
+    }
+    Add-Content $outputFile "`n`n"
+}
+
+Write-Host "✅ DONE! Code successfully dumped to:"
+Write-Host $outputFile

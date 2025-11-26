@@ -2,6 +2,8 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import api from "../api";
 import "../index.css";
+import { on } from "../eventBus";
+import { emit } from "../eventBus";
 
 function Home() {
   // --- STATE MANAGEMENT ---
@@ -16,12 +18,13 @@ function Home() {
   const [searching, setSearching] = useState(false);
   const [hasSearched, setHasSearched] = useState(false);
 
-  // Call State (New!)
+  // Call + Meeting States
   const [incomingCall, setIncomingCall] = useState(null);
+  const [pendingMeeting, setPendingMeeting] = useState(null);
 
   const navigate = useNavigate();
 
-  // --- 1. API CALLS (Data Fetching) ---
+  // --- 1. API CALLS ---
   const getProfile = () => {
     api
       .get("profile/")
@@ -36,10 +39,20 @@ function Home() {
       .catch(() => {});
   };
 
-  // --- 2. POLLING LOGIC (The "Active Call" Checker) ---
+  const getPendingMeeting = () => {
+    api
+      .get("meetings/pending/")
+      .then((res) => {
+        const arr = Array.isArray(res.data) ? res.data : [];
+        setPendingMeeting(arr.length > 0 ? arr[0] : null);
+      })
+      .catch(() => setPendingMeeting(null));
+  };
+
+  // --- 2. POLLING LOGIC ---
   useEffect(() => {
-    // Poll every 3 seconds to see if anyone is calling
-    const checkCalls = setInterval(() => {
+    // Poll every 3s for calls + meetings
+    const poller = setInterval(() => {
       api
         .get("call/check/")
         .then((res) => {
@@ -50,55 +63,72 @@ function Home() {
           }
         })
         .catch(() => {});
-    }, 3000); // 3 seconds
+      getPendingMeeting();
+    }, 3000);
 
-    return () => clearInterval(checkCalls); // Cleanup when leaving page
+    return () => clearInterval(poller);
   }, []);
 
   // --- 3. ACTION HANDLERS ---
-
-  // Start a call (Caller side)
   const startClass = (peerId) => {
     api
       .post(`call/start/${peerId}/`)
-      .then(() => {
-        // Navigate to room AFTER telling backend
-        navigate(`/room/${peerId}`);
-      })
+      .then(() => navigate(`/room/${peerId}`))
       .catch(() => alert("Could not connect call."));
   };
 
-  // Join a call (Receiver side)
   const joinClass = () => {
-    if (incomingCall) {
-      // Navigate to the caller's room ID
-      navigate(`/room/${incomingCall.id}`);
-    }
+    if (incomingCall) navigate(`/room/${incomingCall.id}`);
   };
 
-  // Clean up the notification on the current screen (Ignore button)
   const ignoreCall = () => {
     if (incomingCall && incomingCall.caller) {
-      // We use the caller's ID as the "target" to end the call with
-      // In our new backend logic, this ID is just a placeholder for the URL,
-      // but the backend will automatically find the call involving 'Me' and end it.
       const targetId = incomingCall.caller.id;
-
       api
         .post(`call/end/${targetId}/`)
         .then(() => {
           console.log("Call rejected successfully");
-          setIncomingCall(null); // Clear the notification from the screen instantly
+          setIncomingCall(null);
         })
         .catch((err) => console.error("Failed to reject call:", err));
     }
   };
 
-  // --- Existing CRUD/Search Handlers ---
+  // --- Meeting Handlers ---
+  const handleMeetingResponse = async (meetingId, response) => {
+    try {
+      const res = await api.post(`/meetings/${meetingId}/respond/`, {
+        response,
+      });
+
+      // ✅ Emit global sync event so NotificationBell updates too
+      emit("meeting-updated", { meetingId, status: response });
+      getPendingMeeting(); // 🔁 refresh local pending invites
+
+      if (response === "ACCEPT") {
+        const meeting = res.data;
+        const room = meeting.jitsi_room;
+
+        if (room) {
+          alert("Meeting accepted successfully! Redirecting...");
+          const roomUrl = `/room/${meeting.id}`;
+          window.location.href = roomUrl;
+        } else {
+          alert("Meeting accepted but room not found. Please refresh.");
+        }
+      } else {
+        alert("Meeting declined.");
+      }
+    } catch (error) {
+      console.error("Failed to respond:", error);
+      alert("Failed to respond to meeting.");
+    }
+  };
+
+  // --- Search Handlers ---
   const handleSearch = (e) => {
     e.preventDefault();
     if (!searchQuery.trim()) return;
-
     setSearching(true);
     setHasSearched(true);
 
@@ -120,7 +150,7 @@ function Home() {
         }
       })
       .catch((err) => {
-        if (err.response && err.response.data && err.response.data.error) {
+        if (err.response?.data?.error) {
           alert(err.response.data.error);
         } else {
           alert("Failed to add skill.");
@@ -139,18 +169,28 @@ function Home() {
     }
   };
 
-  // Initial Load
+  // --- Initial Load ---
   useEffect(() => {
     getSkills();
     getProfile();
+    getPendingMeeting();
+  }, []);
+
+  useEffect(() => {
+    // Listen for meeting updates from NotificationBell
+    const unsubscribe = on("meeting-updated", () => {
+      getPendingMeeting(); // 🔁 instantly reload pending invites
+    });
+    return unsubscribe;
   }, []);
 
   const teaching = skills.filter((s) => s.skill_type === "TEACH");
   const learning = skills.filter((s) => s.skill_type === "LEARN");
 
+  // --- UI ---
   return (
     <div className="max-w-7xl mx-auto mt-6 grid grid-cols-1 lg:grid-cols-12 gap-8">
-      {/* --- INCOMING CALL BANNER (Shows up when someone calls) --- */}
+      {/* --- INCOMING CALL BANNER --- */}
       {incomingCall && (
         <div className="lg:col-span-12 bg-indigo-600 text-white p-4 rounded-xl shadow-lg flex justify-between items-center animate-pulse border-2 border-indigo-400 mb-4">
           <div className="flex items-center gap-3">
@@ -166,7 +206,7 @@ function Home() {
           </div>
           <div className="flex gap-3">
             <button
-              onClick={ignoreCall} // Use the new ignore function
+              onClick={ignoreCall}
               className="px-4 py-2 rounded-lg text-sm font-bold bg-indigo-800 hover:bg-indigo-900 transition"
             >
               Ignore
@@ -181,7 +221,7 @@ function Home() {
         </div>
       )}
 
-      {/* --- LEFT SIDEBAR (User Skills) --- */}
+      {/* --- LEFT SIDEBAR --- */}
       <div className="lg:col-span-4 space-y-6">
         {/* Profile Summary */}
         <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6">
@@ -191,6 +231,51 @@ function Home() {
           <p className="text-gray-500 text-sm mt-1">
             Ready to learn something new today?
           </p>
+        </div>
+
+        {/* ✅ Dynamic Pending Meeting Poll */}
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6 mt-4">
+          <h3 className="font-bold text-gray-800 text-lg mb-3">
+            Pending Meeting Invites
+          </h3>
+          <div id="meeting-poll">
+            {pendingMeeting ? (
+              <div className="text-sm text-gray-700">
+                <p className="mb-3">
+                  <span className="font-semibold">
+                    {pendingMeeting.host?.username}
+                  </span>{" "}
+                  invited you to a meeting about{" "}
+                  <span className="italic text-indigo-600">
+                    {pendingMeeting.topic || "a skill session"}
+                  </span>
+                  .
+                </p>
+                <div className="flex gap-3">
+                  <button
+                    onClick={() =>
+                      handleMeetingResponse(pendingMeeting.id, "ACCEPT")
+                    }
+                    className="px-4 py-2 rounded-lg bg-green-600 text-white font-semibold text-xs hover:bg-green-700"
+                  >
+                    Accept
+                  </button>
+                  <button
+                    onClick={() =>
+                      handleMeetingResponse(pendingMeeting.id, "DECLINE")
+                    }
+                    className="px-4 py-2 rounded-lg bg-red-600 text-white font-semibold text-xs hover:bg-red-700"
+                  >
+                    Decline
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <p className="text-gray-500 text-sm">
+                You have no pending meeting invites.
+              </p>
+            )}
+          </div>
         </div>
 
         {/* My Skills Widget */}
@@ -311,7 +396,6 @@ function Home() {
 
       {/* --- RIGHT MAIN CONTENT (Search & Discovery) --- */}
       <div className="lg:col-span-8">
-        {/* Hero Search Bar */}
         <div className="bg-indigo-600 rounded-2xl py-12 px-6 md:px-12 text-center shadow-lg mb-8 text-white flex flex-col items-center justify-center">
           <h1 className="text-3xl md:text-4xl font-extrabold mb-4">
             Find your next tutor
@@ -371,7 +455,6 @@ function Home() {
                   </span>
                 </div>
 
-                {/* RESTORED VIEW PROFILE AND START CLASS BUTTONS */}
                 <div className="mt-auto flex gap-2">
                   <button
                     onClick={() => navigate(`/peer/${result.user.id}`)}
@@ -390,7 +473,6 @@ function Home() {
             ))}
           </div>
 
-          {/* Empty States */}
           {hasSearched && searchResults.length === 0 && !searching && (
             <div className="text-center py-16 bg-white rounded-2xl border-2 border-dashed border-gray-200">
               <div className="text-5xl mb-4">🤔</div>
@@ -402,6 +484,7 @@ function Home() {
               </p>
             </div>
           )}
+
           {!hasSearched && (
             <div className="text-center py-20 opacity-50">
               <p className="text-gray-400 font-medium">
