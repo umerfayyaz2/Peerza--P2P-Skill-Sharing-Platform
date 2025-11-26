@@ -69,6 +69,26 @@ class Message(models.Model):
     def __str__(self):
         return f"Msg from {self.sender.username} to {self.receiver.username}"
 
+# 6. AVAILABILITY (per-user weekly slots)
+class Availability(models.Model):
+    DAY_CHOICES = [
+        ('MONDAY', 'Monday'),
+        ('TUESDAY', 'Tuesday'),
+        ('WEDNESDAY', 'Wednesday'),
+        ('THURSDAY', 'Thursday'),
+        ('FRIDAY', 'Friday'),
+        ('SATURDAY', 'Saturday'),
+        ('SUNDAY', 'Sunday'),
+    ]
+
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="availability_slots")
+    day_of_week = models.CharField(max_length=9, choices=DAY_CHOICES)
+    start_time = models.TimeField()
+    end_time = models.TimeField()
+
+    def __str__(self):
+        return f"{self.user.username} — {self.day_of_week} {self.start_time}–{self.end_time}"
+
 
 # 6. MEETING MODEL (Scheduler)
 class Meeting(models.Model):
@@ -81,6 +101,7 @@ class Meeting(models.Model):
 
     host = models.ForeignKey(User, related_name='hosted_meetings', on_delete=models.CASCADE)
     guest = models.ForeignKey(User, related_name='invited_meetings', on_delete=models.CASCADE)
+    availability = models.ForeignKey('Availability', null=True, blank=True, on_delete=models.SET_NULL)
 
     topic = models.CharField(max_length=255, blank=True)
     start_datetime = models.DateTimeField()

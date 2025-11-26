@@ -377,6 +377,25 @@ export const REFRESH_TOKEN = "refresh";
 
 
 ========================================
+FILE: C:\D Drive Files\BSIT-B-F23\5th Semester\Advanced Web (Python Based)\Semester Project\Peerza_project\peerza_frontend\src\eventBus.js
+========================================
+// Simple event bus for cross-component updates
+const eventBus = new EventTarget();
+
+export const emit = (event, detail) => {
+  eventBus.dispatchEvent(new CustomEvent(event, { detail }));
+};
+
+export const on = (event, callback) => {
+  eventBus.addEventListener(event, callback);
+  return () => eventBus.removeEventListener(event, callback);
+};
+
+export default eventBus;
+
+
+
+========================================
 FILE: C:\D Drive Files\BSIT-B-F23\5th Semester\Advanced Web (Python Based)\Semester Project\Peerza_project\peerza_frontend\src\firebaseConfig.js
 ========================================
 // src/firebaseConfig.js
@@ -966,6 +985,7 @@ FILE: C:\D Drive Files\BSIT-B-F23\5th Semester\Advanced Web (Python Based)\Semes
 ========================================
 import { useEffect, useState, useRef, useCallback } from "react";
 import api from "../api";
+import { emit } from "../eventBus"; // ✅ added for broadcasting
 
 export default function NotificationsBell() {
   const [count, setCount] = useState(0);
@@ -1072,27 +1092,6 @@ export default function NotificationsBell() {
     }
   };
 
-  // --- Meeting Request Handlers ---
-  const acceptMeeting = async (meetingId, notifId) => {
-    try {
-      await api.post(`meetings/${meetingId}/respond/`, { response: "ACCEPT" });
-      await api.post(`notifications/mark-read/${notifId}/`);
-      load();
-    } catch (err) {
-      console.error("Accept meeting failed:", err);
-    }
-  };
-
-  const declineMeeting = async (meetingId, notifId) => {
-    try {
-      await api.post(`meetings/${meetingId}/respond/`, { response: "DECLINE" });
-      await api.post(`notifications/mark-read/${notifId}/`);
-      load();
-    } catch (err) {
-      console.error("Decline meeting failed:", err);
-    }
-  };
-
   return (
     <div className="relative" ref={dropdownRef}>
       {/* Bell Button */}
@@ -1132,6 +1131,7 @@ export default function NotificationsBell() {
               >
                 <div className="flex items-start justify-between gap-3">
                   <div className="flex-1">
+                    {/* Friend request types */}
                     {n.type === "FRIEND_REQUEST" && (
                       <p>
                         <span className="font-medium">{n.actor?.username}</span>{" "}
@@ -1151,7 +1151,7 @@ export default function NotificationsBell() {
                       </p>
                     )}
 
-                    {/* ✅ New Meeting Request UI */}
+                    {/* ✅ Meeting Request Section with Broadcast Sync */}
                     {n.type === "MEETING_REQUEST" && (
                       <div className="flex flex-col">
                         <p>
@@ -1160,19 +1160,44 @@ export default function NotificationsBell() {
                           </span>{" "}
                           invited you to a meeting 📅
                         </p>
-                        <div className="flex gap-2 mt-2">
+                        <div className="mt-2 flex gap-2">
+                          {/* ✅ ACCEPT */}
                           <button
-                            onClick={() =>
-                              acceptMeeting(n.data.meeting_id, n.id)
-                            }
+                            onClick={async () => {
+                              await api.post(
+                                `meetings/${n.data.meeting_id}/respond/`,
+                                { response: "ACCEPT" }
+                              );
+                              await api.post(
+                                `notifications/mark-read/${n.id}/`
+                              );
+                              emit("meeting-updated", {
+                                meetingId: n.data.meeting_id,
+                                status: "ACCEPTED",
+                              }); // 🚀 broadcast event
+                              load();
+                            }}
                             className="px-3 py-1 rounded bg-green-600 text-white text-xs font-semibold hover:bg-green-700"
                           >
                             Accept
                           </button>
+
+                          {/* ❌ DECLINE */}
                           <button
-                            onClick={() =>
-                              declineMeeting(n.data.meeting_id, n.id)
-                            }
+                            onClick={async () => {
+                              await api.post(
+                                `meetings/${n.data.meeting_id}/respond/`,
+                                { response: "DECLINE" }
+                              );
+                              await api.post(
+                                `notifications/mark-read/${n.id}/`
+                              );
+                              emit("meeting-updated", {
+                                meetingId: n.data.meeting_id,
+                                status: "DECLINED",
+                              });
+                              load();
+                            }}
                             className="px-3 py-1 rounded bg-red-600 text-white text-xs font-semibold hover:bg-red-700"
                           >
                             Decline
@@ -2397,6 +2422,8 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import api from "../api";
 import "../index.css";
+import { on } from "../eventBus";
+import { emit } from "../eventBus";
 
 function Home() {
   // --- STATE MANAGEMENT ---
@@ -2494,13 +2521,16 @@ function Home() {
         response,
       });
 
+      // ✅ Emit global sync event so NotificationBell updates too
+      emit("meeting-updated", { meetingId, status: response });
+      getPendingMeeting(); // 🔁 refresh local pending invites
+
       if (response === "ACCEPT") {
         const meeting = res.data;
         const room = meeting.jitsi_room;
 
         if (room) {
           alert("Meeting accepted successfully! Redirecting...");
-          // Use backend jitsi_room or frontend peerId
           const roomUrl = `/room/${meeting.id}`;
           window.location.href = roomUrl;
         } else {
@@ -2510,7 +2540,7 @@ function Home() {
         alert("Meeting declined.");
       }
     } catch (error) {
-      console.error(error);
+      console.error("Failed to respond:", error);
       alert("Failed to respond to meeting.");
     }
   };
@@ -2564,6 +2594,14 @@ function Home() {
     getSkills();
     getProfile();
     getPendingMeeting();
+  }, []);
+
+  useEffect(() => {
+    // Listen for meeting updates from NotificationBell
+    const unsubscribe = on("meeting-updated", () => {
+      getPendingMeeting(); // 🔁 instantly reload pending invites
+    });
+    return unsubscribe;
   }, []);
 
   const teaching = skills.filter((s) => s.skill_type === "TEACH");

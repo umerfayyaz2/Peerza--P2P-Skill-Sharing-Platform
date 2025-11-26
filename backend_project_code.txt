@@ -988,30 +988,33 @@ def call_start(request, receiver_id):
     receiver = get_object_or_404(User, id=receiver_id)
 
     if caller == receiver:
-        return Response({"error": "You cannot call yourself."}, status=400)
+        return Response({"error": "You cannot call yourself."}, status=status.HTTP_400_BAD_REQUEST)
 
-    meeting, created = Meeting.objects.get_or_create(
+    # ✅ Only reuse a PENDING meeting; ignore ACCEPTED/DECLINED/CANCELLED
+    meeting = Meeting.objects.filter(
         host=caller,
         guest=receiver,
-        defaults={'status': 'PENDING', 'start_datetime': timezone.now()},
-    )
+        status="PENDING",
+    ).order_by("-created_at").first()
 
-    # Notify receiver only when a new meeting gets created
-    if created:
+    if not meeting:
+        meeting = Meeting.objects.create(
+            host=caller,
+            guest=receiver,
+            status="PENDING",
+            start_datetime=timezone.now(),
+        )
+        # Notify receiver only when we actually create a new pending request
         Notification.objects.create(
-            user=receiver,
-            actor=caller,
+            user=receiver,       # who should receive it
+            actor=caller,        # who initiated it
             type="MEETING_REQUEST",
             data={"meeting_id": meeting.id},
         )
-        print(f"✅ Notification created for {receiver.username}")
-    else:
-        print(f"⚠️ Meeting already exists between {caller.username} and {receiver.username}")
 
-    return Response({
-        "ok": True,
-        "room": f"Peerza-Class-{caller.id}-{receiver.id}",
-    })
+    # room name is stable for this pair + this meeting
+    room_name = f"Peerza-Class-{caller.id}-{receiver.id}"
+    return Response({"ok": True, "room": room_name}, status=status.HTTP_200_OK)
 
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])

@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import api from "../api";
+import PeerScheduler from "../components/PeerScheduler";
 
 function PeerProfile() {
   const { id } = useParams();
@@ -142,6 +143,9 @@ function PeerProfile() {
           </div>
         </div>
       </div>
+
+      {/* ✅ Peer Availability Calendar */}
+      <PeerScheduler peerId={peer.id} />
     </div>
   );
 }

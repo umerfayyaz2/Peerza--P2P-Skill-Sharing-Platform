@@ -70,4 +70,10 @@ urlpatterns = [
     path('friends/requests/', views.friend_requests_inbox, name='friend_requests_inbox'),
     path('friends/request/<int:user_id>/', views.friend_request_send, name='friend_request_send'),
     path('friends/request/respond/<int:request_id>/', views.friend_request_respond, name='friend_request_respond'),
+
+    # =========================================================
+    # AVAILABILITY
+    # =========================================================
+    path('availability/<int:user_id>/', views.get_user_availability, name='get_user_availability'),
+    path('availability/', views.create_or_update_availability, name='create_or_update_availability'),
 ]

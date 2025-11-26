@@ -512,3 +512,29 @@ def friend_requests_inbox(request):
         to_user=me, status=FriendRequest.PENDING
     ).select_related("from_user")
     return Response(FriendRequestSerializer(qs, many=True).data)
+
+# =========================================================
+# AVAILABILITY (Scheduler)
+# =========================================================
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
+from .models import Availability
+from .serializers import AvailabilitySerializer
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def get_user_availability(request, user_id):
+    slots = Availability.objects.filter(user_id=user_id)
+    return Response(AvailabilitySerializer(slots, many=True).data)
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def create_or_update_availability(request):
+    serializer = AvailabilitySerializer(data=request.data, many=True)
+    if serializer.is_valid():
+        Availability.objects.filter(user=request.user).delete()
+        for slot in serializer.validated_data:
+            Availability.objects.create(user=request.user, **slot)
+        return Response({"message": "Availability updated!"}, status=201)
+    return Response(serializer.errors, status=400)

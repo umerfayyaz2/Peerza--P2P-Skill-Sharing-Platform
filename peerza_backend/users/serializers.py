@@ -103,3 +103,12 @@ class FriendshipSerializer(serializers.ModelSerializer):
     class Meta:
         model = Friendship
         fields = ["id", "friend", "created_at"]
+
+from rest_framework import serializers
+from .models import Availability
+
+class AvailabilitySerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Availability
+        fields = ['id', 'day_of_week', 'start_time', 'end_time']
+
