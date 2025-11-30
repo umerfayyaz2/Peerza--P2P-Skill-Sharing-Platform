@@ -467,6 +467,87 @@ createRoot(document.getElementById('root')).render(
 
 
 ========================================
+FILE: C:\D Drive Files\BSIT-B-F23\5th Semester\Advanced Web (Python Based)\Semester Project\Peerza_project\peerza_frontend\src\components\BookSessionModal.jsx
+========================================
+import { useState } from "react";
+import { X } from "lucide-react";
+import api from "../api";
+
+export default function BookSessionModal({ slot, peerId, onClose }) {
+  const [topic, setTopic] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  const handleConfirm = async () => {
+    if (!topic.trim()) {
+      alert("Please enter a topic!");
+      return;
+    }
+    setLoading(true);
+    try {
+      await api.post("meetings/", {
+        topic,
+        guest: peerId, // the person you're meeting with
+        start_datetime: slot.start,
+        end_datetime: slot.end,
+      });
+      alert("Meeting request sent!");
+      onClose();
+    } catch (err) {
+      console.error(err);
+      alert("Failed to schedule meeting.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
+      <div className="bg-white rounded-2xl p-6 w-[400px] shadow-lg">
+        <div className="flex justify-between items-center mb-4">
+          <h2 className="font-semibold text-lg">Schedule a Session</h2>
+          <button onClick={onClose}>
+            <X size={20} />
+          </button>
+        </div>
+
+        <p className="text-sm text-gray-600 mb-2">
+          Selected Slot:{" "}
+          <b>
+            {slot.start.toLocaleTimeString([], {
+              hour: "2-digit",
+              minute: "2-digit",
+            })}
+            {" – "}
+            {slot.end.toLocaleTimeString([], {
+              hour: "2-digit",
+              minute: "2-digit",
+            })}
+          </b>
+        </p>
+
+        <input
+          type="text"
+          className="w-full border rounded-lg p-2 text-sm mb-4"
+          placeholder="Enter session topic..."
+          value={topic}
+          onChange={(e) => setTopic(e.target.value)}
+        />
+
+        <button
+          disabled={loading}
+          onClick={handleConfirm}
+          className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-2 rounded-lg"
+        >
+          {loading ? "Sending..." : "Confirm Booking"}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+
+
+========================================
 FILE: C:\D Drive Files\BSIT-B-F23\5th Semester\Advanced Web (Python Based)\Semester Project\Peerza_project\peerza_frontend\src\components\ChatWidget.jsx
 ========================================
 import { useState, useEffect, useRef } from "react";
@@ -1416,6 +1497,127 @@ export default function PeerChatWidget() {
         </div>
       )}
     </>
+  );
+}
+
+
+
+========================================
+FILE: C:\D Drive Files\BSIT-B-F23\5th Semester\Advanced Web (Python Based)\Semester Project\Peerza_project\peerza_frontend\src\components\PeerScheduler.jsx
+========================================
+import { useEffect, useState } from "react";
+import { Calendar, dateFnsLocalizer } from "react-big-calendar";
+import { format, parse, startOfWeek, getDay } from "date-fns";
+import { enUS } from "date-fns/locale";
+import "react-big-calendar/lib/css/react-big-calendar.css";
+import api from "../api";
+import BookSessionModal from "./BookSessionModal";
+
+const locales = {
+  "en-US": enUS,
+};
+
+const localizer = dateFnsLocalizer({
+  format,
+  parse,
+  startOfWeek,
+  getDay,
+  locales,
+});
+
+export default function PeerScheduler({ peerId }) {
+  const [slots, setSlots] = useState([]);
+  const [selectedSlot, setSelectedSlot] = useState(null);
+
+  useEffect(() => {
+    const fetchAvailability = async () => {
+      try {
+        const res = await api.get(`availability/${peerId}/`);
+
+        // Map backend weekday strings to actual dates in the current week
+        const dayMap = {
+          SUNDAY: 0,
+          MONDAY: 1,
+          TUESDAY: 2,
+          WEDNESDAY: 3,
+          THURSDAY: 4,
+          FRIDAY: 5,
+          SATURDAY: 6,
+        };
+
+        const today = new Date();
+        const currentWeekStart = new Date(
+          today.setDate(today.getDate() - today.getDay())
+        ); // start from this week's Sunday
+
+        const formatted = res.data.map((slot) => {
+          const eventDate = new Date(currentWeekStart);
+          eventDate.setDate(
+            currentWeekStart.getDate() + dayMap[slot.day_of_week]
+          );
+
+          const [startHour, startMin] = slot.start_time.split(":").map(Number);
+          const [endHour, endMin] = slot.end_time.split(":").map(Number);
+
+          const start = new Date(eventDate);
+          start.setHours(startHour, startMin, 0);
+
+          const end = new Date(eventDate);
+          end.setHours(endHour, endMin, 0);
+
+          return {
+            title: "Available",
+            start,
+            end,
+          };
+        });
+
+        setSlots(formatted);
+      } catch (err) {
+        console.error("Failed to fetch availability:", err);
+      }
+    };
+
+    fetchAvailability();
+  }, [peerId]);
+
+  return (
+    <div className="bg-white shadow rounded-2xl p-4 mt-6">
+      <h3 className="font-semibold mb-3 text-gray-800 flex items-center gap-2">
+        📅 Availability
+      </h3>
+
+      <Calendar
+        localizer={localizer}
+        events={slots}
+        startAccessor="start"
+        endAccessor="end"
+        style={{ height: 400 }}
+        views={["week", "day"]}
+        defaultView="week"
+        toolbar={false}
+        onSelectEvent={(event) => setSelectedSlot(event)} // ✅ clickable event
+        eventPropGetter={() => ({
+          style: {
+            backgroundColor: "#22c55e",
+            borderRadius: "8px",
+            color: "white",
+            border: "none",
+            padding: "4px",
+            cursor: "pointer",
+          },
+        })}
+      />
+
+      {/* Modal appears when a slot is clicked */}
+      {selectedSlot && (
+        <BookSessionModal
+          slot={selectedSlot}
+          peerId={peerId}
+          onClose={() => setSelectedSlot(null)}
+        />
+      )}
+    </div>
   );
 }
 
@@ -3059,6 +3261,7 @@ FILE: C:\D Drive Files\BSIT-B-F23\5th Semester\Advanced Web (Python Based)\Semes
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import api from "../api";
+import PeerScheduler from "../components/PeerScheduler";
 
 function PeerProfile() {
   const { id } = useParams();
@@ -3200,6 +3403,9 @@ function PeerProfile() {
           </div>
         </div>
       </div>
+
+      {/* ✅ Peer Availability Calendar */}
+      <PeerScheduler peerId={peer.id} />
     </div>
   );
 }

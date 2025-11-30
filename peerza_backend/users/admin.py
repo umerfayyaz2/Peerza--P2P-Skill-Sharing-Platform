@@ -1,6 +1,6 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin
-from .models import User, Skill, UserSkill, Meeting, Notification, Message, FriendRequest, Friendship
+from .models import User, Skill, UserSkill, Meeting, Notification, Message, FriendRequest, Friendship , Availability
 
 
 # 1. Register the Custom User
@@ -24,3 +24,8 @@ class NotificationAdmin(admin.ModelAdmin):
 # 4. ✅ Register Friend Request & Friendship models
 admin.site.register(FriendRequest)
 admin.site.register(Friendship)
+
+@admin.register(Availability)
+class AvailabilityAdmin(admin.ModelAdmin):
+    list_display = ('user', 'day_of_week', 'start_time', 'end_time')
+    list_filter = ('day_of_week',)
