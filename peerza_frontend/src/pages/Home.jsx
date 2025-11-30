@@ -4,6 +4,7 @@ import api from "../api";
 import "../index.css";
 import { on } from "../eventBus";
 import { emit } from "../eventBus";
+import MyAvailabilityManager from "../components/MyAvailabilityManager";
 
 function Home() {
   // --- STATE MANAGEMENT ---
@@ -277,6 +278,9 @@ function Home() {
             )}
           </div>
         </div>
+
+        {/* ✅ My Availability Manager */}
+        <MyAvailabilityManager />
 
         {/* My Skills Widget */}
         <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6">

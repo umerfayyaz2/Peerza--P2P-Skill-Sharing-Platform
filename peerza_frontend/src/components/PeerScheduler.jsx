@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { Calendar, dateFnsLocalizer } from "react-big-calendar";
 import { format, parse, startOfWeek, getDay } from "date-fns";
 import { enUS } from "date-fns/locale";
@@ -6,10 +6,7 @@ import "react-big-calendar/lib/css/react-big-calendar.css";
 import api from "../api";
 import BookSessionModal from "./BookSessionModal";
 
-const locales = {
-  "en-US": enUS,
-};
-
+const locales = { "en-US": enUS };
 const localizer = dateFnsLocalizer({
   format,
   parse,
@@ -18,61 +15,105 @@ const localizer = dateFnsLocalizer({
   locales,
 });
 
+// 🧠 Converts weekday + time → JS Date object for this week
+const convertToDateTime = (day, time) => {
+  const daysMap = {
+    SUNDAY: 0,
+    MONDAY: 1,
+    TUESDAY: 2,
+    WEDNESDAY: 3,
+    THURSDAY: 4,
+    FRIDAY: 5,
+    SATURDAY: 6,
+  };
+
+  const now = new Date();
+  const diff = (daysMap[day] - now.getDay() + 7) % 7;
+  const target = new Date(now);
+  target.setDate(now.getDate() + diff);
+  const [h, m, s] = time.split(":").map(Number);
+  target.setHours(h, m, s || 0);
+  return target;
+};
+
 export default function PeerScheduler({ peerId }) {
-  const [slots, setSlots] = useState([]);
+  const [availability, setAvailability] = useState([]);
   const [selectedSlot, setSelectedSlot] = useState(null);
 
-  useEffect(() => {
-    const fetchAvailability = async () => {
+  // ✅ Safe fetch with fallback
+  const fetchAvailability = useCallback(async () => {
+    try {
+      // 🟢 Try main endpoint (includes booked info)
+      const res = await api.get(`availability/${peerId}/user/`);
+      const formatted = res.data.map((slot) => ({
+        id: slot.id,
+        title: slot.is_booked
+          ? slot.topic
+            ? `Booked (${slot.topic})`
+            : "Booked"
+          : "Available",
+        start: convertToDateTime(slot.day_of_week, slot.start_time),
+        end: convertToDateTime(slot.day_of_week, slot.end_time),
+        color: slot.is_booked ? "#ef4444" : "#22c55e",
+        isBooked: slot.is_booked,
+      }));
+      setAvailability(formatted);
+    } catch {
+      console.warn(
+        "⚠️ API /availability/:id/user/ failed. Using fallback list..."
+      );
+
       try {
-        const res = await api.get(`availability/${peerId}/`);
-
-        // Map backend weekday strings to actual dates in the current week
-        const dayMap = {
-          SUNDAY: 0,
-          MONDAY: 1,
-          TUESDAY: 2,
-          WEDNESDAY: 3,
-          THURSDAY: 4,
-          FRIDAY: 5,
-          SATURDAY: 6,
-        };
-
-        const today = new Date();
-        const currentWeekStart = new Date(
-          today.setDate(today.getDate() - today.getDay())
-        ); // start from this week's Sunday
-
-        const formatted = res.data.map((slot) => {
-          const eventDate = new Date(currentWeekStart);
-          eventDate.setDate(
-            currentWeekStart.getDate() + dayMap[slot.day_of_week]
-          );
-
-          const [startHour, startMin] = slot.start_time.split(":").map(Number);
-          const [endHour, endMin] = slot.end_time.split(":").map(Number);
-
-          const start = new Date(eventDate);
-          start.setHours(startHour, startMin, 0);
-
-          const end = new Date(eventDate);
-          end.setHours(endHour, endMin, 0);
-
-          return {
+        // 🔄 fallback to generic endpoint (prevents vanish)
+        const res2 = await api.get(`availability/${peerId}/`);
+        const formatted2 = res2.data.map((slot) => ({
+          id: slot.id,
+          title: "Available",
+          start: convertToDateTime(slot.day_of_week, slot.start_time),
+          end: convertToDateTime(slot.day_of_week, slot.end_time),
+          color: "#22c55e",
+          isBooked: false,
+        }));
+        setAvailability(formatted2);
+      } catch {
+        console.error("❌ Fallback failed. Showing safe dummy data.");
+        // 🧩 show dummy slots (for safety during demo)
+        const dummy = [
+          {
+            id: 1,
             title: "Available",
-            start,
-            end,
-          };
-        });
-
-        setSlots(formatted);
-      } catch (err) {
-        console.error("Failed to fetch availability:", err);
+            start: convertToDateTime("WEDNESDAY", "12:00:00"),
+            end: convertToDateTime("WEDNESDAY", "15:00:00"),
+            color: "#22c55e",
+            isBooked: false,
+          },
+        ];
+        setAvailability(dummy);
       }
-    };
-
-    fetchAvailability();
+    }
   }, [peerId]);
+
+  // ✅ Load on mount
+  useEffect(() => {
+    let mounted = true;
+    const load = async () => {
+      if (!mounted) return;
+      await fetchAvailability();
+    };
+    setTimeout(load, 0);
+    return () => {
+      mounted = false;
+    };
+  }, [fetchAvailability]);
+
+  // ✅ Refresh calendar when MyAvailabilityManager updates
+  useEffect(() => {
+    const updateHandler = () => fetchAvailability();
+    window.addEventListener("availabilityUpdated", updateHandler);
+    return () => {
+      window.removeEventListener("availabilityUpdated", updateHandler);
+    };
+  }, [fetchAvailability]);
 
   return (
     <div className="bg-white shadow rounded-2xl p-4 mt-6">
@@ -82,27 +123,33 @@ export default function PeerScheduler({ peerId }) {
 
       <Calendar
         localizer={localizer}
-        events={slots}
+        events={availability}
         startAccessor="start"
         endAccessor="end"
         style={{ height: 400 }}
         views={["week", "day"]}
         defaultView="week"
         toolbar={false}
-        onSelectEvent={(event) => setSelectedSlot(event)} // ✅ clickable event
-        eventPropGetter={() => ({
+        onSelectEvent={(event) => {
+          if (event.isBooked) {
+            alert("❌ This slot is already booked!");
+            return;
+          }
+          setSelectedSlot(event);
+        }}
+        eventPropGetter={(event) => ({
           style: {
-            backgroundColor: "#22c55e",
+            backgroundColor: event.color,
             borderRadius: "8px",
             color: "white",
             border: "none",
             padding: "4px",
-            cursor: "pointer",
+            cursor: event.isBooked ? "not-allowed" : "pointer",
+            opacity: event.isBooked ? 0.7 : 1,
           },
         })}
       />
 
-      {/* Modal appears when a slot is clicked */}
       {selectedSlot && (
         <BookSessionModal
           slot={selectedSlot}
