@@ -1,6 +1,24 @@
 import { Link } from "react-router-dom";
+import { loadStripe } from "@stripe/stripe-js";
+import api from "../api";
+
+const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PK);
 
 function GetPro() {
+  const startCheckout = async () => {
+    try {
+      const { data } = await api.post("payments/create-session/");
+      const stripe = await stripePromise;
+      const { error } = await stripe.redirectToCheckout({
+        sessionId: data.sessionId,
+      });
+      if (error) alert(error.message);
+    } catch (e) {
+      console.error(e);
+      alert("Failed to start payment. Check console.");
+    }
+  };
+
   return (
     <div className="max-w-7xl mx-auto py-12 px-4 sm:px-6 lg:px-8">
       <div className="text-center mb-16">
@@ -63,7 +81,10 @@ function GetPro() {
               <span className="mr-2 text-yellow-400">✔</span> Group Classes
             </li>
           </ul>
-          <button className="mt-8 block w-full bg-white text-indigo-600 font-bold py-3 px-6 rounded-xl text-center hover:bg-gray-50 transition shadow-lg">
+          <button
+            onClick={startCheckout}
+            className="mt-8 block w-full bg-white text-indigo-600 font-bold py-3 px-6 rounded-xl text-center hover:bg-gray-50 transition shadow-lg"
+          >
             Upgrade Now
           </button>
         </div>
