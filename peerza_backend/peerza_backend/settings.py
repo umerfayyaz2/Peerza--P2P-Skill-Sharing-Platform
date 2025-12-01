@@ -145,3 +145,9 @@ MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 
 # Email Backend (Prints emails to the terminal console instead of sending them)
 EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
+
+# --- Stripe ---
+STRIPE_SECRET_KEY = "sk_test_xxx"        # backend secret
+STRIPE_PUBLISHABLE_KEY = "pk_test_xxx"   # frontend publishable
+# Optional if you use webhooks:
+STRIPE_WEBHOOK_SECRET = "whsec_xxx"

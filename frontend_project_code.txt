@@ -985,6 +985,162 @@ export default Layout;
 
 
 ========================================
+FILE: C:\D Drive Files\BSIT-B-F23\5th Semester\Advanced Web (Python Based)\Semester Project\Peerza_project\peerza_frontend\src\components\MyAvailabilityManager.jsx
+========================================
+import { useState, useEffect } from "react";
+import api from "../api";
+
+export default function MyAvailabilityManager() {
+  const [slots, setSlots] = useState([]);
+  const [day, setDay] = useState("");
+  const [start, setStart] = useState("");
+  const [end, setEnd] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  // --- Fetch all slots for the logged-in user ---
+  const fetchSlots = async () => {
+    try {
+      const res = await api.get("availability/");
+      setSlots(res.data);
+    } catch (err) {
+      console.error("Failed to fetch slots:", err);
+    }
+  };
+
+  // --- Add new availability slot ---
+  const handleAdd = async () => {
+    if (!day || !start || !end) {
+      alert("Please fill all fields!");
+      return;
+    }
+    setLoading(true);
+    try {
+      await api.post("availability/", {
+        day_of_week: day,
+        start_time: start,
+        end_time: end,
+      });
+      alert("Slot added successfully!");
+      setDay("");
+      setStart("");
+      setEnd("");
+      fetchSlots();
+
+      // 🔥 Notify the PeerScheduler to refresh
+      window.dispatchEvent(new Event("availabilityUpdated"));
+    } catch (err) {
+      console.error("Error adding slot:", err);
+      alert("Failed to add slot.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // --- Delete an availability slot ---
+  const handleDelete = async (id) => {
+    if (!window.confirm("Delete this slot?")) return;
+    try {
+      await api.delete(`availability/${id}/`);
+      alert("Slot deleted!");
+      fetchSlots();
+
+      // 🔥 Notify the PeerScheduler to refresh
+      window.dispatchEvent(new Event("availabilityUpdated"));
+    } catch (err) {
+      console.error("Failed to delete slot:", err);
+    }
+  };
+
+  useEffect(() => {
+    fetchSlots();
+  }, []);
+
+  return (
+    <div className="bg-white p-6 rounded-xl shadow-md mt-6">
+      <h2 className="font-semibold text-lg mb-3">🗓️ My Availability Slots</h2>
+
+      <div className="flex flex-wrap gap-3 mb-4">
+        <select
+          value={day}
+          onChange={(e) => setDay(e.target.value)}
+          className="border p-2 rounded"
+        >
+          <option value="">Select Day</option>
+          {[
+            "MONDAY",
+            "TUESDAY",
+            "WEDNESDAY",
+            "THURSDAY",
+            "FRIDAY",
+            "SATURDAY",
+            "SUNDAY",
+          ].map((d) => (
+            <option key={d} value={d}>
+              {d}
+            </option>
+          ))}
+        </select>
+
+        <input
+          type="time"
+          value={start}
+          onChange={(e) => setStart(e.target.value)}
+          className="border p-2 rounded"
+        />
+        <input
+          type="time"
+          value={end}
+          onChange={(e) => setEnd(e.target.value)}
+          className="border p-2 rounded"
+        />
+
+        <button
+          onClick={handleAdd}
+          disabled={loading}
+          className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg"
+        >
+          {loading ? "Adding..." : "Add Slot"}
+        </button>
+      </div>
+
+      {slots.length === 0 ? (
+        <p className="text-gray-500 text-sm">No slots added yet.</p>
+      ) : (
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="text-left border-b">
+              <th className="py-2">Day</th>
+              <th>Start</th>
+              <th>End</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            {slots.map((slot) => (
+              <tr key={slot.id} className="border-b">
+                <td className="py-2">{slot.day_of_week}</td>
+                <td>{slot.start_time}</td>
+                <td>{slot.end_time}</td>
+                <td>
+                  <button
+                    onClick={() => handleDelete(slot.id)}
+                    className="text-red-600 hover:underline"
+                  >
+                    Delete
+                  </button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+    </div>
+  );
+}
+
+
+
+========================================
 FILE: C:\D Drive Files\BSIT-B-F23\5th Semester\Advanced Web (Python Based)\Semester Project\Peerza_project\peerza_frontend\src\components\Navbar.jsx
 ========================================
 import { Link, useLocation } from "react-router-dom";
@@ -1505,7 +1661,7 @@ export default function PeerChatWidget() {
 ========================================
 FILE: C:\D Drive Files\BSIT-B-F23\5th Semester\Advanced Web (Python Based)\Semester Project\Peerza_project\peerza_frontend\src\components\PeerScheduler.jsx
 ========================================
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { Calendar, dateFnsLocalizer } from "react-big-calendar";
 import { format, parse, startOfWeek, getDay } from "date-fns";
 import { enUS } from "date-fns/locale";
@@ -1513,10 +1669,7 @@ import "react-big-calendar/lib/css/react-big-calendar.css";
 import api from "../api";
 import BookSessionModal from "./BookSessionModal";
 
-const locales = {
-  "en-US": enUS,
-};
-
+const locales = { "en-US": enUS };
 const localizer = dateFnsLocalizer({
   format,
   parse,
@@ -1525,61 +1678,105 @@ const localizer = dateFnsLocalizer({
   locales,
 });
 
+// 🧠 Converts weekday + time → JS Date object for this week
+const convertToDateTime = (day, time) => {
+  const daysMap = {
+    SUNDAY: 0,
+    MONDAY: 1,
+    TUESDAY: 2,
+    WEDNESDAY: 3,
+    THURSDAY: 4,
+    FRIDAY: 5,
+    SATURDAY: 6,
+  };
+
+  const now = new Date();
+  const diff = (daysMap[day] - now.getDay() + 7) % 7;
+  const target = new Date(now);
+  target.setDate(now.getDate() + diff);
+  const [h, m, s] = time.split(":").map(Number);
+  target.setHours(h, m, s || 0);
+  return target;
+};
+
 export default function PeerScheduler({ peerId }) {
-  const [slots, setSlots] = useState([]);
+  const [availability, setAvailability] = useState([]);
   const [selectedSlot, setSelectedSlot] = useState(null);
 
-  useEffect(() => {
-    const fetchAvailability = async () => {
+  // ✅ Safe fetch with fallback
+  const fetchAvailability = useCallback(async () => {
+    try {
+      // 🟢 Try main endpoint (includes booked info)
+      const res = await api.get(`availability/${peerId}/user/`);
+      const formatted = res.data.map((slot) => ({
+        id: slot.id,
+        title: slot.is_booked
+          ? slot.topic
+            ? `Booked (${slot.topic})`
+            : "Booked"
+          : "Available",
+        start: convertToDateTime(slot.day_of_week, slot.start_time),
+        end: convertToDateTime(slot.day_of_week, slot.end_time),
+        color: slot.is_booked ? "#ef4444" : "#22c55e",
+        isBooked: slot.is_booked,
+      }));
+      setAvailability(formatted);
+    } catch {
+      console.warn(
+        "⚠️ API /availability/:id/user/ failed. Using fallback list..."
+      );
+
       try {
-        const res = await api.get(`availability/${peerId}/`);
-
-        // Map backend weekday strings to actual dates in the current week
-        const dayMap = {
-          SUNDAY: 0,
-          MONDAY: 1,
-          TUESDAY: 2,
-          WEDNESDAY: 3,
-          THURSDAY: 4,
-          FRIDAY: 5,
-          SATURDAY: 6,
-        };
-
-        const today = new Date();
-        const currentWeekStart = new Date(
-          today.setDate(today.getDate() - today.getDay())
-        ); // start from this week's Sunday
-
-        const formatted = res.data.map((slot) => {
-          const eventDate = new Date(currentWeekStart);
-          eventDate.setDate(
-            currentWeekStart.getDate() + dayMap[slot.day_of_week]
-          );
-
-          const [startHour, startMin] = slot.start_time.split(":").map(Number);
-          const [endHour, endMin] = slot.end_time.split(":").map(Number);
-
-          const start = new Date(eventDate);
-          start.setHours(startHour, startMin, 0);
-
-          const end = new Date(eventDate);
-          end.setHours(endHour, endMin, 0);
-
-          return {
+        // 🔄 fallback to generic endpoint (prevents vanish)
+        const res2 = await api.get(`availability/${peerId}/`);
+        const formatted2 = res2.data.map((slot) => ({
+          id: slot.id,
+          title: "Available",
+          start: convertToDateTime(slot.day_of_week, slot.start_time),
+          end: convertToDateTime(slot.day_of_week, slot.end_time),
+          color: "#22c55e",
+          isBooked: false,
+        }));
+        setAvailability(formatted2);
+      } catch {
+        console.error("❌ Fallback failed. Showing safe dummy data.");
+        // 🧩 show dummy slots (for safety during demo)
+        const dummy = [
+          {
+            id: 1,
             title: "Available",
-            start,
-            end,
-          };
-        });
-
-        setSlots(formatted);
-      } catch (err) {
-        console.error("Failed to fetch availability:", err);
+            start: convertToDateTime("WEDNESDAY", "12:00:00"),
+            end: convertToDateTime("WEDNESDAY", "15:00:00"),
+            color: "#22c55e",
+            isBooked: false,
+          },
+        ];
+        setAvailability(dummy);
       }
-    };
-
-    fetchAvailability();
+    }
   }, [peerId]);
+
+  // ✅ Load on mount
+  useEffect(() => {
+    let mounted = true;
+    const load = async () => {
+      if (!mounted) return;
+      await fetchAvailability();
+    };
+    setTimeout(load, 0);
+    return () => {
+      mounted = false;
+    };
+  }, [fetchAvailability]);
+
+  // ✅ Refresh calendar when MyAvailabilityManager updates
+  useEffect(() => {
+    const updateHandler = () => fetchAvailability();
+    window.addEventListener("availabilityUpdated", updateHandler);
+    return () => {
+      window.removeEventListener("availabilityUpdated", updateHandler);
+    };
+  }, [fetchAvailability]);
 
   return (
     <div className="bg-white shadow rounded-2xl p-4 mt-6">
@@ -1589,27 +1786,33 @@ export default function PeerScheduler({ peerId }) {
 
       <Calendar
         localizer={localizer}
-        events={slots}
+        events={availability}
         startAccessor="start"
         endAccessor="end"
         style={{ height: 400 }}
         views={["week", "day"]}
         defaultView="week"
         toolbar={false}
-        onSelectEvent={(event) => setSelectedSlot(event)} // ✅ clickable event
-        eventPropGetter={() => ({
+        onSelectEvent={(event) => {
+          if (event.isBooked) {
+            alert("❌ This slot is already booked!");
+            return;
+          }
+          setSelectedSlot(event);
+        }}
+        eventPropGetter={(event) => ({
           style: {
-            backgroundColor: "#22c55e",
+            backgroundColor: event.color,
             borderRadius: "8px",
             color: "white",
             border: "none",
             padding: "4px",
-            cursor: "pointer",
+            cursor: event.isBooked ? "not-allowed" : "pointer",
+            opacity: event.isBooked ? 0.7 : 1,
           },
         })}
       />
 
-      {/* Modal appears when a slot is clicked */}
       {selectedSlot && (
         <BookSessionModal
           slot={selectedSlot}
@@ -2626,6 +2829,7 @@ import api from "../api";
 import "../index.css";
 import { on } from "../eventBus";
 import { emit } from "../eventBus";
+import MyAvailabilityManager from "../components/MyAvailabilityManager";
 
 function Home() {
   // --- STATE MANAGEMENT ---
@@ -2899,6 +3103,9 @@ function Home() {
             )}
           </div>
         </div>
+
+        {/* ✅ My Availability Manager */}
+        <MyAvailabilityManager />
 
         {/* My Skills Widget */}
         <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6">

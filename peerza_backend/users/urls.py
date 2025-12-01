@@ -4,6 +4,7 @@ from rest_framework.routers import DefaultRouter
 from . import views
 from .views_meeting import MeetingViewSet
 from .views_availability import AvailabilityViewSet
+from .views_payments import create_checkout_session, stripe_webhook  # ✅ Added
 
 router = DefaultRouter()
 router.register(r'meetings', MeetingViewSet, basename='meeting')
@@ -55,6 +56,10 @@ urlpatterns = [
     path('friends/requests/', views.friend_requests_inbox, name='friend_requests_inbox'),
     path('friends/request/<int:user_id>/', views.friend_request_send, name='friend_request_send'),
     path('friends/request/respond/<int:request_id>/', views.friend_request_respond, name='friend_request_respond'),
+
+    # PAYMENTS  ✅ Added Stripe endpoints
+    path('payments/create-session/', create_checkout_session, name='create_checkout_session'),
+    path('payments/webhook/', stripe_webhook, name='stripe_webhook'),
 ]
 
 urlpatterns += router.urls
