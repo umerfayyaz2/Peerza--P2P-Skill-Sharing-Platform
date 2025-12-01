@@ -1,2 +1,29 @@
 project_files.txt
 
+# === Python / Django ignores ===
+__pycache__/
+*.py[cod]
+*.sqlite3
+*.log
+
+# === Virtual environment ===
+env/
+venv/
+.env/
+.venv/
+
+# === Node / React ignores ===
+node_modules/
+dist/
+.DS_Store
+
+# === IDE files ===
+.vscode/
+.idea/
+
+# === Other build or cache ===
+*.egg-info/
+*.pot
+*.mo
+staticfiles/
+media/
